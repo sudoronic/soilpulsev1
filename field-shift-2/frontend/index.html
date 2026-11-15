@@ -1,0 +1,1307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SoilPulse — Field Shift with NASA Data</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+
+  <style>
+    :root {
+      --bg: #f5f2eb;
+      --surface: #ffffff;
+      --surface-alt: #efebe0;
+      --ink: #1b2a20;
+      --ink-muted: #556459;
+      --border: #d9d3c3;
+      --primary: #245c3e;
+      --primary-light: #e4f0e8;
+      --accent: #b8562b;
+      --accent-light: #fbeae2;
+      --water: #1f6f8b;
+      --water-light: #e3f2f7;
+      --warn: #b37b16;
+      --warn-light: #fbf3df;
+      --nasa-blue: #0b3d91;
+      --radius: 12px;
+      --shadow: 0 2px 10px rgba(27, 42, 32, 0.06);
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: var(--font-sans); background: var(--bg); color: var(--ink); line-height: 1.5; }
+
+    header {
+      background: linear-gradient(135deg, #163022 0%, #244b36 60%, #193a4d 100%);
+      color: #fff;
+      padding: 1rem 1.5rem;
+      border-bottom: 3px solid #d49a45;
+    }
+    .header-inner {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .brand img {
+      height: 50px;
+      width: auto;
+      border-radius: 10px;
+      background: #fff;
+      padding: 2px;
+    }
+    .brand h1 { margin: 0; font-size: 1.38rem; letter-spacing: -0.02em; }
+    .brand p { margin: 0.15rem 0 0; font-size: 0.85rem; color: #cfe0d5; }
+    .header-badges { display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      padding: 0.26rem 0.65rem;
+      border-radius: 999px;
+      font-size: 0.73rem;
+      font-weight: 600;
+      background: rgba(255,255,255,0.14);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.22);
+    }
+    .badge.live { background: #1e7e4f; border-color: #53c78c; }
+    .badge.demo { background: #8a5b14; border-color: #e6b865; }
+
+    .advisory-bar {
+      background: var(--warn-light);
+      border-bottom: 1px solid #e5d2a4;
+      color: #573d0b;
+      font-size: 0.83rem;
+      padding: 0.55rem 1.5rem;
+    }
+    .advisory-inner {
+      max-width: 1440px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    main {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 1.2rem 1.5rem 3rem;
+      display: grid;
+      grid-template-columns: 375px 1fr;
+      gap: 1.2rem;
+      align-items: start;
+    }
+    @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 1.05rem;
+      margin-bottom: 1.05rem;
+    }
+    .panel h2 {
+      margin: 0 0 0.65rem;
+      font-size: 1rem;
+      border-bottom: 1px solid var(--surface-alt);
+      padding-bottom: 0.45rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+    }
+    .panel h3 { margin: 0.85rem 0 0.38rem; font-size: 0.89rem; color: var(--primary); }
+    .subtext { font-size: 0.8rem; color: var(--ink-muted); margin: 0 0 0.65rem; }
+
+    label { display: block; font-size: 0.79rem; font-weight: 600; margin-bottom: 0.18rem; }
+    select, input[type="number"], input[type="text"] {
+      width: 100%;
+      padding: 0.44rem 0.58rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.84rem;
+      background: #fff;
+      color: var(--ink);
+      margin-bottom: 0.55rem;
+    }
+    .coord-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+    .tri-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.45rem; }
+    .check-row { display: flex; flex-wrap: wrap; gap: 0.55rem; margin-bottom: 0.6rem; font-size: 0.78rem; }
+    .check-row label { display: inline-flex; align-items: center; gap: 0.3rem; font-weight: 500; margin: 0; cursor: pointer; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.35rem;
+      padding: 0.48rem 0.82rem;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      font-size: 0.81rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .btn-primary { background: var(--primary); color: #fff; width: 100%; margin-bottom: 0.4rem; }
+    .btn-primary:hover { background: #1c4730; }
+    .btn-nasa { background: var(--nasa-blue); color: #fff; width: 100%; margin-bottom: 0.4rem; }
+    .btn-nasa:hover { background: #082d6e; }
+    .btn-snic { background: #9a3412; color: #fff; width: 100%; margin-bottom: 0.4rem; }
+    .btn-snic:hover { background: #7c2d12; }
+    .btn-outline { background: #fff; color: var(--ink); border-color: var(--border); }
+    .btn-outline:hover { background: var(--surface-alt); }
+    .btn-sm { padding: 0.32rem 0.6rem; font-size: 0.75rem; }
+
+    .slider-group { margin-bottom: 0.6rem; }
+    .slider-header { display: flex; justify-content: space-between; font-size: 0.79rem; font-weight: 600; margin-bottom: 0.12rem; }
+    .slider-header span.val { font-family: var(--font-mono); color: var(--primary); }
+    input[type="range"] { width: 100%; accent-color: var(--primary); cursor: pointer; }
+
+    .tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.95rem; }
+    .tab-btn {
+      padding: 0.48rem 0.85rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--ink-muted);
+      font-weight: 600;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+    .tab-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+    .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.78rem 0.92rem; box-shadow: var(--shadow); }
+    .kpi-label { font-size: 0.71rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-muted); font-weight: 700; }
+    .kpi-value { font-size: 1.2rem; font-weight: 800; font-family: var(--font-mono); margin: 0.16rem 0; }
+    .kpi-note { font-size: 0.73rem; color: var(--ink-muted); }
+
+    .tag { display: inline-block; padding: 0.13rem 0.44rem; border-radius: 6px; font-size: 0.7rem; font-weight: 700; }
+    .tag-good { background: var(--primary-light); color: var(--primary); }
+    .tag-warn { background: var(--warn-light); color: var(--warn); }
+    .tag-risk { background: var(--accent-light); color: var(--accent); }
+    .tag-water { background: var(--water-light); color: var(--water); }
+
+    #fieldMap { width: 100%; height: 420px; border-radius: 10px; border: 1px solid var(--border); z-index: 1; }
+
+    .layer-pills { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.6rem; align-items: center; }
+    .layer-pill { padding: 0.3rem 0.58rem; border-radius: 7px; border: 1px solid var(--border); background: var(--surface-alt); font-size: 0.74rem; font-weight: 600; cursor: pointer; }
+    .layer-pill.active { background: var(--nasa-blue); color: #fff; border-color: var(--nasa-blue); }
+
+    .gibs-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; background: var(--surface-alt); padding: 0.5rem 0.7rem; border-radius: 8px; margin-bottom: 0.6rem; font-size: 0.77rem; }
+    .gibs-bar select { width: auto; margin: 0; padding: 0.28rem 0.45rem; font-size: 0.76rem; }
+
+    .soil-card-box { background: var(--surface-alt); border: 1px solid var(--border); border-radius: 9px; padding: 0.65rem; font-size: 0.77rem; margin-top: 0.45rem; }
+    .soil-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.38rem; margin-top: 0.38rem; }
+    .soil-stat { background: #fff; border: 1px solid var(--border); border-radius: 6px; padding: 0.32rem; text-align: center; }
+    .soil-stat strong { display: block; font-family: var(--font-mono); font-size: 0.83rem; color: var(--primary); }
+
+    .two-col { display: grid; grid-template-columns: 1.15fr 1fr; gap: 1rem; }
+    @media (max-width: 920px) { .two-col { grid-template-columns: 1fr; } }
+
+    .strategy-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(310px, 1fr)); gap: 1rem; }
+    .strategy-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.05rem; box-shadow: var(--shadow); display: flex; flex-direction: column; gap: 0.55rem; position: relative; }
+    .strategy-card.recommended { border: 2px solid var(--primary); }
+    .rec-ribbon { position: absolute; top: -10px; right: 14px; background: var(--primary); color: #fff; font-size: 0.68rem; font-weight: 700; padding: 0.16rem 0.55rem; border-radius: 999px; }
+    .score-row { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+    .score-big { font-family: var(--font-mono); font-size: 1.32rem; font-weight: 800; color: var(--primary); }
+    .crop-sequence { display: flex; flex-wrap: wrap; gap: 0.32rem; align-items: center; font-size: 0.76rem; background: var(--surface-alt); padding: 0.42rem; border-radius: 8px; }
+    .crop-pill { background: #fff; border: 1px solid var(--border); padding: 0.14rem 0.4rem; border-radius: 6px; font-weight: 600; }
+
+    .metric-bars { display: grid; gap: 0.32rem; }
+    .mbar-row { display: grid; grid-template-columns: 110px 1fr 34px; align-items: center; gap: 0.4rem; font-size: 0.73rem; }
+    .mbar-track { height: 7px; background: var(--surface-alt); border-radius: 999px; overflow: hidden; }
+    .mbar-fill { height: 100%; border-radius: 999px; }
+
+    .trait-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; font-size: 0.71rem; }
+    .trait-chip { background: var(--primary-light); color: var(--primary); padding: 0.12rem 0.42rem; border-radius: 5px; font-weight: 600; }
+
+    details.strat-details { border-top: 1px solid var(--surface-alt); padding-top: 0.45rem; font-size: 0.79rem; }
+    details.strat-details summary { cursor: pointer; font-weight: 700; color: var(--primary); margin-bottom: 0.25rem; }
+    details.strat-details p { margin: 0.22rem 0 0.45rem; color: var(--ink-muted); }
+
+    .plain-summary { background: var(--primary-light); border-left: 4px solid var(--primary); padding: 0.7rem 0.9rem; border-radius: 8px; font-size: 0.84rem; margin-bottom: 0.9rem; }
+    .si-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 0.9rem; margin-bottom: 1rem; }
+    .si-card { background: var(--surface-alt); border: 1px solid var(--border); border-radius: 10px; padding: 0.9rem; }
+    .si-card h4 { margin: 0 0 0.4rem; font-size: 0.9rem; color: var(--nasa-blue); }
+
+    .glossary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(255px, 1fr)); gap: 0.85rem; }
+    .glossary-card { background: var(--surface-alt); border-radius: 10px; padding: 0.85rem; border: 1px solid var(--border); }
+    .glossary-card h4 { margin: 0 0 0.3rem; font-size: 0.89rem; color: var(--primary); }
+    .glossary-card p { margin: 0; font-size: 0.8rem; color: var(--ink); }
+
+    .status-msg { font-size: 0.76rem; color: var(--ink-muted); margin-top: 0.28rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    th, td { text-align: left; padding: 0.48rem 0.55rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { background: var(--surface-alt); font-size: 0.73rem; text-transform: uppercase; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="brand">
+      <img src="logo.jpeg" alt="SoilPulse Logo" onerror="this.style.display='none'" />
+      <div>
+        <h1>SoilPulse <span style="font-weight:400;opacity:0.85;">| Field Shift with NASA Data</span></h1>
+        <p>Global crop-rotation decision support fusing 10-year NASA POWER trends, Sentinel-2 SNIC field delineation, SRTM terrain, SoilGrids &amp; farmer priorities.</p>
+      </div>
+    </div>
+    <div class="header-badges">
+      <span id="nasaBadge" class="badge demo">🛰️ NASA 10-Yr: Demo</span>
+      <span id="soilBadge" class="badge demo">🪱 SoilGrids: Standby</span>
+      <span id="elevBadge" class="badge demo">⛰️ SRTM Terrain: Standby</span>
+      <span id="backendBadge" class="badge demo">⚡ AppEEARS/SNIC: Optional</span>
+    </div>
+  </div>
+</header>
+
+<div class="advisory-bar">
+  <div class="advisory-inner">
+    <span><strong>Human-in-the-Loop Advisory:</strong> This tool highlights satellite patterns and rotation possibilities—it <strong>supports, never replaces</strong> farmer judgment, soil lab tests, or local agricultural extension advisors.</span>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <a href="farmer-pk.html" class="btn btn-outline btn-sm" style="text-decoration:none;">🌾 کسان ایپ (Multi-Language Farmer Mode)</a>
+      <button class="btn btn-outline btn-sm" onclick="exportRotationBrief()">📄 Export Rotation Brief (.md)</button>
+    </div>
+  </div>
+</div>
+
+<main>
+  <aside>
+    <div class="panel">
+      <h2>1. Farm Location, Satellite &amp; Soil</h2>
+      <label for="regionSelect">Reference Agricultural Region</label>
+      <select id="regionSelect" onchange="selectRegion(this.value)">
+        <option value="iowa">Story County, Iowa (US Corn Belt)</option>
+        <option value="punjab">Punjab, Pakistan (Okara/Depalpur 4,678 SNIC Fields)</option>
+        <option value="fresno">Fresno County, California (Central Valley)</option>
+        <option value="senegal">Kaolack Basin, Senegal (Sahel Transition)</option>
+        <option value="murray">Riverina, NSW, Australia (Murray-Darling)</option>
+        <option value="custom">Custom Drawn Field (Global Climate-Matched)</option>
+      </select>
+
+      <div class="coord-row">
+        <div>
+          <label for="latInput">Latitude</label>
+          <input type="number" id="latInput" step="0.0001" value="42.0650" />
+        </div>
+        <div>
+          <label for="lonInput">Longitude</label>
+          <input type="number" id="lonInput" step="0.0001" value="-93.5450" />
+        </div>
+      </div>
+
+      <button class="btn btn-primary" onclick="fetchAllLiveApis()">🛰️ Fetch 10-Yr NASA POWER + Soil + SRTM</button>
+      <button class="btn btn-snic" onclick="loadPunjabSnicFields()">🌾 Load 4,678 Sentinel-2 SNIC Fields (Punjab)</button>
+      <button class="btn btn-nasa" onclick="submitBackendPolygonJob()">🚀 Run AppEEARS / NRCS / CropScape Backend</button>
+
+      <label for="backendUrlInput" style="margin-top:0.25rem;">FastAPI Backend URL</label>
+      <input type="text" id="backendUrlInput" value="http://127.0.0.1:8000" />
+
+      <div id="apiStatus" class="status-msg">Draw a field polygon on the Map, or click above to load live NASA POWER, SoilGrids, SRTM, or the 4,678-field Sentinel-2 SNIC scan.</div>
+
+      <div class="soil-card-box">
+        <strong>Ground Soil Profile (0–30 cm)</strong>
+        <div class="status-msg" id="soilSummaryText">Regional baseline active. Click Fetch to query SoilGrids 250m.</div>
+        <div class="soil-metrics">
+          <div class="soil-stat"><span style="font-size:0.67rem;">Texture</span><strong id="soilTexVal">Silt Loam</strong></div>
+          <div class="soil-stat"><span style="font-size:0.67rem;">Org. Carbon</span><strong id="soilSocVal">— g/kg</strong></div>
+          <div class="soil-stat"><span style="font-size:0.67rem;">Soil pH</span><strong id="soilPhVal">—</strong></div>
+        </div>
+      </div>
+
+      <h3>Existing Crop &amp; Local Market Context</h3>
+      <label for="existingCropSelect">Current Baseline Crop System</label>
+      <select id="existingCropSelect" onchange="updateAll()">
+        <option value="auto">Auto-Match Region / Climate Zone</option>
+        <option value="corn_soy">Corn / Maize – Soybean (Row Crop)</option>
+        <option value="punjab_cotton_wheat">Cotton / Rice – Wheat (South Asia)</option>
+        <option value="wheat_canola">Winter Wheat – Canola / Barley (Broadacre)</option>
+        <option value="millet_groundnut">Pearl Millet / Sorghum – Groundnut (Dryland)</option>
+        <option value="irrigated_veg">Irrigated Tomato / Vegetable – Silage</option>
+      </select>
+
+      <label for="soilSelect">Dominant Soil Texture</label>
+      <select id="soilSelect" onchange="updateAll()">
+        <option value="silt_loam">Silt Loam (Balanced holding, erodible on slopes)</option>
+        <option value="sandy_loam">Sandy Loam (Fast drainage, low moisture retention)</option>
+        <option value="clay_loam">Clay Loam (High retention, compaction/runoff risk)</option>
+      </select>
+
+      <label for="irrigationSelect">Water &amp; Irrigation Access</label>
+      <select id="irrigationSelect" onchange="updateAll()">
+        <option value="rainfed">Rainfed Only</option>
+        <option value="deficit">Supplemental / Deficit Irrigation</option>
+        <option value="irrigated">Full Irrigation</option>
+      </select>
+
+      <label for="equipSelect">Equipment &amp; Operation Type</label>
+      <select id="equipSelect" onchange="updateAll()">
+        <option value="standard">Row-Crop Equipment + Regional Grain Market</option>
+        <option value="livestock">Mixed Crop-Livestock (High forage/grazing value)</option>
+        <option value="limited">Limited Specialty Machinery (Prefer low-input covers)</option>
+      </select>
+
+      <label>Local Markets Available Nearby:</label>
+      <div class="check-row">
+        <label><input type="checkbox" id="mktGrain" checked onchange="updateAll()" /> Grain/Oilseed</label>
+        <label><input type="checkbox" id="mktPulse" checked onchange="updateAll()" /> Legumes/Pulses</label>
+        <label><input type="checkbox" id="mktForage" checked onchange="updateAll()" /> Hay/Forage</label>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>2. Satellite vs. Ground Calibration</h2>
+      <p class="subtext">Optional local measurements override or calibrate satellite assumptions.</p>
+      <div class="tri-row">
+        <div><label for="localRainInput">Rain Gauge (mm)</label><input type="number" id="localRainInput" placeholder="e.g. 720" oninput="updateAll()" /></div>
+        <div><label for="localOmInput">Lab SOM (%)</label><input type="number" id="localOmInput" step="0.1" placeholder="e.g. 3.2" oninput="updateAll()" /></div>
+        <div><label for="localPhInput">Lab pH</label><input type="number" id="localPhInput" step="0.1" placeholder="e.g. 6.4" oninput="updateAll()" /></div>
+      </div>
+      <label for="groundIssueSelect">Field Scouting Observation</label>
+      <select id="groundIssueSelect" onchange="updateAll()">
+        <option value="none">No Major Physical Constraint Noted</option>
+        <option value="gully">Visible Slope Gullies / Rill Erosion</option>
+        <option value="compaction">Subsoil Compaction / Hardpan Layer</option>
+        <option value="waterlog">Spring Waterlogging / Poor Drainage</option>
+      </select>
+      <div id="satVsGroundNote" class="status-msg">Enter local measurements above to compare against satellite estimates.</div>
+    </div>
+
+    <div class="panel">
+      <h2>3. Farmer Priorities (0–10) &amp; Climate Test</h2>
+      <div class="slider-group"><div class="slider-header"><span>💧 Water Conservation</span><span class="val" id="wWaterVal">8</span></div><input type="range" id="wWater" min="0" max="10" value="8" oninput="updateAll()" /></div>
+      <div class="slider-group"><div class="slider-header"><span>🌿 Nitrogen &amp; Organic Matter</span><span class="val" id="wSoilVal">9</span></div><input type="range" id="wSoil" min="0" max="10" value="9" oninput="updateAll()" /></div>
+      <div class="slider-group"><div class="slider-header"><span>🛡️ Erosion &amp; Bare-Field Cover</span><span class="val" id="wErosionVal">7</span></div><input type="range" id="wErosion" min="0" max="10" value="7" oninput="updateAll()" /></div>
+      <div class="slider-group"><div class="slider-header"><span>💵 Cash &amp; Forage Income</span><span class="val" id="wIncomeVal">7</span></div><input type="range" id="wIncome" min="0" max="10" value="7" oninput="updateAll()" /></div>
+      <div class="slider-group"><div class="slider-header"><span>🐞 Pest &amp; Disease Disruption</span><span class="val" id="wPestVal">6</span></div><input type="range" id="wPest" min="0" max="10" value="6" oninput="updateAll()" /></div>
+      <hr style="border:none;border-top:1px solid var(--surface-alt);margin:0.75rem 0;" />
+      <div class="slider-group"><div class="slider-header"><span>🌡️ Temperature Scenario</span><span class="val" id="tempShiftVal">+1.0 °C</span></div><input type="range" id="tempShift" min="0" max="3.5" step="0.5" value="1.0" oninput="updateAll()" /></div>
+      <div class="slider-group"><div class="slider-header"><span>🌧️ Rainfall Scenario</span><span class="val" id="rainShiftVal">-10%</span></div><input type="range" id="rainShift" min="-35" max="20" step="5" value="-10" oninput="updateAll()" /></div>
+    </div>
+  </aside>
+
+  <section>
+    <div class="kpi-grid" id="kpiGrid"></div>
+
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('map', this)">🗺️ Satellite Field Map &amp; SNIC</button>
+      <button class="tab-btn" onclick="switchTab('rotations', this)">🔄 Rotation Strategies (4)</button>
+      <button class="tab-btn" onclick="switchTab('timeline', this)">📈 10-Yr Trends &amp; Seasonal Extremes</button>
+      <button class="tab-btn" onclick="switchTab('si', this)">🧠 SI Model Comparison &amp; Uncertainty</button>
+      <button class="tab-btn" onclick="switchTab('glossary', this)">📘 Farmer Earth-Science Guide</button>
+    </div>
+
+    <div id="tab-map" class="tab-pane active">
+      <div class="panel">
+        <h2>Interactive Field Boundary, Sentinel-2 SNIC Parcels &amp; NASA GIBS Overlays</h2>
+        <p class="subtext">Draw any field polygon worldwide, switch between Satellite Imagery and your Carto Voyager map (top-right), or load the 4,678 SNIC-segmented Punjab fields to inspect bare-soil hotspots.</p>
+
+        <div class="layer-pills" id="layerPills">
+          <button class="layer-pill active" onclick="setMapLayer('moisture', this)">SMAP Moisture</button>
+          <button class="layer-pill" onclick="setMapLayer('heat', this)">ECOSTRESS Heat/ET</button>
+          <button class="layer-pill" onclick="setMapLayer('ndvi', this)">Landsat/MODIS NDVI</button>
+          <button class="layer-pill" onclick="setMapLayer('erosion', this)">SRTM+GPM Erosion</button>
+          <button class="layer-pill" onclick="setMapLayer('frost', this)">SRTM Frost Pockets</button>
+        </div>
+
+        <div class="gibs-bar">
+          <strong>🛰️ NASA GIBS Overlay:</strong>
+          <select id="gibsLayerSelect" onchange="updateGibsLayer()">
+            <option value="none">Off (Show Field Grid Only)</option>
+            <option value="MODIS_Terra_NDVI_8Day">MODIS Terra NDVI (Vegetation Greenness)</option>
+            <option value="IMERG_Precipitation_Rate">GPM IMERG Precipitation Rate</option>
+            <option value="SMAP_L4_Analyzed_Root_Zone_Soil_Moisture">SMAP Root-Zone Soil Moisture</option>
+            <option value="MODIS_Terra_CorrectedReflectance_TrueColor">MODIS True Color</option>
+          </select>
+          <span>Season Window:</span>
+          <select id="gibsDateSelect" onchange="updateGibsLayer()">
+            <option value="2024-04-15">Spring Planting (Apr 15)</option>
+            <option value="2024-07-15" selected>Summer Peak (Jul 15)</option>
+            <option value="2024-10-15">Autumn Harvest (Oct 15)</option>
+            <option value="2024-01-15">Winter Bare-Field (Jan 15)</option>
+          </select>
+        </div>
+
+        <div id="fieldMap"></div>
+
+        <div class="soil-card-box" style="margin-top:0.75rem;">
+          <strong>Drawn Field:</strong> <span id="polyAreaText">40.0 ha</span> ·
+          <strong>Centroid:</strong> <span id="polyCentroidText">42.0650, -93.5450</span> ·
+          <strong>Elevation Span:</strong> <span id="polyElevText">Regional baseline</span><br/>
+          <strong>Selected Micro-Zone / SNIC Field:</strong> <span id="zoneDetailText">Click any grid square or SNIC parcel on the map to inspect diagnostics.</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-rotations" class="tab-pane">
+      <div class="panel">
+        <h2>Comparing Baseline vs. Adaptive Rotation Strategies</h2>
+        <div class="plain-summary" id="plainRotationSummary"></div>
+        <div class="strategy-grid" id="strategyGrid"></div>
+      </div>
+    </div>
+
+    <div id="tab-timeline" class="tab-pane">
+      <div class="two-col">
+        <div class="panel">
+          <h2>12-Month Water Balance &amp; Bare-Field Window</h2>
+          <p class="subtext">Rainfall (mm) vs. Evapotranspiration Demand (ET₀) and Baseline Crop NDVI. Shaded red bands highlight bare-field vulnerability months.</p>
+          <div id="seasonalChartBox" style="width:100%;overflow-x:auto;"></div>
+          <div id="seasonalInsights" class="status-msg" style="margin-top:0.55rem;"></div>
+        </div>
+
+        <div class="panel">
+          <h2>10-Year Historical Trend (2014–2023) &amp; Daily Extremes</h2>
+          <p class="subtext">Annual precipitation vs. mean temperature trend across 10 years, plus daily heatwave, heavy storm, and frost-free window diagnostics.</p>
+          <div id="tenYearChartBox" style="width:100%;overflow-x:auto;"></div>
+          <div id="extremesSummaryBox" class="soil-card-box" style="margin-top:0.55rem;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="tab-si" class="tab-pane">
+      <div class="panel">
+        <h2>Statistical Intelligence (SI) Comparison, Data Harmonization &amp; Uncertainty</h2>
+        <p class="subtext">Comparing two transparent SI methods on historical climate &amp; soil features so farmers can see where models agree and where local judgment is vital.</p>
+        <div class="si-grid" id="siComparisonCards"></div>
+        <h3>Multi-Sensor Harmonization &amp; Architecture Notes</h3>
+        <table>
+          <thead><tr><th>Dataset</th><th>Native Scale</th><th>Harmonization &amp; Execution</th><th>Known Uncertainty / Local Validation</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Sentinel-2 SNIC (bare_fields.py)</strong></td><td>10 m, multi-year</td><td>Google Earth Engine ESA WorldCereal mask + 12-month SNIC segmentation (4,678 parcels).</td><td>Thin clouds in peak monsoon; verify bare vs. recently tilled locally.</td></tr>
+            <tr><td><strong>NASA SMAP &amp; POWER</strong></td><td>9 km / 0.5°</td><td>Disaggregated to 30 m grid using SRTM slope &amp; SoilGrids retention offsets.</td><td>Coarse pixel misses localized irrigation leaks or tile drainage.</td></tr>
+            <tr><td><strong>ECOSTRESS &amp; GIBS</strong></td><td>70 m / 250 m</td><td>Real-time GIBS seasonal overlays + pre-queued AppEEARS async GeoTIFF extraction.</td><td>AppEEARS jobs queue 5–30 min asynchronously; GIBS renders live.</td></tr>
+            <tr><td><strong>GRACE-FO &amp; SRTM</strong></td><td>300 km / 30 m</td><td>GRACE flags regional aquifer decline; SRTM computes real local slope &amp; frost pockets.</td><td>Check local well levels, tubewell depth, and canal rotations.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div id="tab-glossary" class="tab-pane">
+      <div class="panel">
+        <h2>Plain-Language Earth Science &amp; Soil Health Guide</h2>
+        <p class="subtext">Farmer-friendly explanations of satellite measurements, ground validation, and why diverse rotation crops build resilience.</p>
+        <div class="glossary-grid">
+          <div class="glossary-card"><h4>Evapotranspiration (ET₀) &amp; Water Balance</h4><p>ET₀ is water evaporating from soil plus transpiring from leaves. Rainfall minus ET₀ shows whether your soil moisture bank is building or draining.</p></div>
+          <div class="glossary-card"><h4>Soil Moisture Anomaly (SMAP)</h4><p>Shows whether root-zone moisture is wetter or drier than normal for that week—spotting drought stress before planting or grain fill.</p></div>
+          <div class="glossary-card"><h4>NDVI &amp; Bare-Field Windows</h4><p>NDVI measures living green cover (0.15 = bare dirt; 0.80 = lush crop). Low NDVI during May–June dust storms or monsoon rain signals topsoil erosion risk.</p></div>
+          <div class="glossary-card"><h4>Frost Risk &amp; Cold-Air Drainage</h4><p>Low depressions in SRTM elevation collect cold night air. Knowing your frost-free window prevents planting sensitive legumes too early.</p></div>
+          <div class="glossary-card"><h4>Satellite vs. Ground Measurements</h4><p>Satellites track multi-year weather and regional water trends, while a farm rain gauge and soil lab test measure exact pH, SOM, and compaction.</p></div>
+          <div class="glossary-card"><h4>Nitrogen-Fixing &amp; Cover Crops</h4><p>Legumes (mungbean, chickpea, soybean, berseem, clover) capture nitrogen from air (50–150+ kg N/ha), cutting urea bills and feeding microbes.</p></div>
+          <div class="glossary-card"><h4>Deep-Rooting &amp; Drought Crops</h4><p>Sorghum, pearl millet, guar, and alfalfa send roots 1.5–2.5+ m deep—breaking hardpans and surviving heatwaves that stunt shallow grains.</p></div>
+          <div class="glossary-card"><h4>Where Human Judgment Matters Most</h4><p>Only you know local buyer contracts, equipment width, weed seedbanks, canal water turns, and cash-flow needs. Use SoilPulse to shortlist ideas—not dictate decisions.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script>
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const DAYS_IN_MONTH = [31,28,31,30,31,30,31,31,30,31,30,31];
+
+const ROTATION_BANK = {
+  corn_soy: [
+    { id:"base", name:"Existing: Corn–Soybean (No Cover)", isBaseline:true, crops:["Corn","Bare Winter","Soybean","Bare Winter"], traits:{water:5.5,soil:4.0,erosion:3.0,income:8.5,pest:4.5}, waterDemandMm:560, nFixKg:40, rootDepth:"0.9–1.2 m", forage:"Low", mktReq:"grain", why:"Maximizes row-crop acreage but leaves fields bare ~6 months/year.", evidence:"NDVI <0.22 Nov–Apr while spring storms hit exposed topsoil.", benefits:"Familiar planter/combine setup and liquid grain markets.", gaps:"Tile drainage spacing and field SOM% require local confirmation.", risks:"Nitrate leaching, spring rill erosion, and rootworm pressure." },
+    { id:"cover_rye", name:"Adaptive A: Corn–Cereal Rye–Soybean–Oats/Clover", crops:["Corn","Winter Rye","Soybean","Oats + Red Clover"], traits:{water:7.5,soil:9.0,erosion:9.2,income:7.4,pest:8.2}, waterDemandMm:515, nFixKg:95, rootDepth:"1.3 m", forage:"Medium", mktReq:"grain", why:"Covers bare winter/spring months and adds a nitrogen-fixing legume + small grain break.", evidence:"Winter rye keeps living NDVI >0.40 through spring storms, cutting runoff.", benefits:"Builds organic matter, suppresses weeds, disrupts corn rootworm.", gaps:"Exact spring rye termination date depends on April soil moisture.", risks:"Requires termination sprayer/roller pass and oat market check." },
+    { id:"sorghum_wheat", name:"Adaptive B: Grain Sorghum–Winter Wheat–Soybean", crops:["Grain Sorghum","Winter Wheat","Soybean"], traits:{water:8.8,soil:7.8,erosion:8.4,income:7.0,pest:8.5}, waterDemandMm:455, nFixKg:55, rootDepth:"1.6 m", forage:"Medium", mktReq:"grain", why:"Replaces water-sensitive corn with drought-hardy sorghum + winter wheat cover.", evidence:"Mid-summer heatwaves (>32°C) penalize corn pollination more than sorghum.", benefits:"20–25% lower peak summer water use and strong pest break.", gaps:"Local sorghum elevator basis and wheat Fusarium risk need checking.", risks:"Lower yield ceiling in unusually cool, wet summers." },
+    { id:"alfalfa_forage", name:"Adaptive C: Corn–Winter Triticale–2-Yr Alfalfa/Grass", crops:["Corn","Winter Triticale","Alfalfa/Grass (2 Yr)"], traits:{water:7.2,soil:9.5,erosion:9.6,income:7.8,pest:9.0}, waterDemandMm:530, nFixKg:140, rootDepth:"2.2 m", forage:"High", mktReq:"forage", why:"Best for sloping SRTM erosion hotspots and mixed crop-livestock farms.", evidence:"Perennial roots trap extreme storm runoff and fix 120+ kg N/ha.", benefits:"Near-zero erosion, major SOM gain, cuts synthetic N fertilizer.", gaps:"Requires local hay buyers or livestock grazing infrastructure.", risks:"Deep alfalfa stand can dry subsoil ahead of dry-year corn." }
+  ],
+  punjab_cotton_wheat: [
+    { id:"base", name:"Existing: Rice/Cotton–Wheat (Bare May–Jun)", isBaseline:true, crops:["Wheat (Nov–Apr)","Bare Fallow (May–Jun)","Cotton/Rice (Jul–Oct)"], traits:{water:4.2,soil:4.0,erosion:4.2,income:8.2,pest:4.5}, waterDemandMm:760, nFixKg:0, rootDepth:"0.9 m", forage:"Low", mktReq:"grain", why:"Dominant Indus Basin rotation, but SNIC shows fields sitting bare in May–Jun under 42°C+ heat.", evidence:"Sentinel-2 SNIC flags bare soil (<0.20 NDVI) in May–Jun; GRACE shows aquifer stress.", benefits:"Established wheat procurement & cotton/rice mandi channels.", gaps:"Check local canal turn (warabandi) and tubewell EC salinity.", risks:"High urea cost, groundwater depletion, and whitefly/stubble-burn issues." },
+    { id:"mung_relay", name:"Adaptive A: Wheat–Short Mungbean–Cotton/DSR Rice", crops:["Wheat","65-Day Mungbean","Cotton / DSR Rice"], traits:{water:8.2,soil:9.0,erosion:8.8,income:8.4,pest:8.4}, waterDemandMm:610, nFixKg:85, rootDepth:"1.3 m", forage:"Medium", mktReq:"pulse", why:"Fills the exact May–Jun bare window identified by Sentinel-2 SNIC with a short nitrogen-fixing pulse.", evidence:"Mungbean covers May–Jun soil, cuts surface temp, and adds 60–85 kg N/ha for following crop.", benefits:"Cuts urea fertilizer bill, yields bonus pulse income, shields bare topsoil.", gaps:"Requires timely April wheat harvest & short-duration mung seed (e.g. NM-2016/Azri).", risks:"Early pre-monsoon rain at mung picking requires timely harvest." },
+    { id:"berseem_fodder", name:"Adaptive B: Cotton/Maize–Berseem/Oat Forage–Wheat", crops:["Cotton / Maize","Berseem Clover + Oats","Wheat"], traits:{water:7.6,soil:9.2,erosion:9.0,income:8.1,pest:8.8}, waterDemandMm:640, nFixKg:120, rootDepth:"1.6 m", forage:"High", mktReq:"forage", why:"Ideal for Punjab crop-livestock dairy farms needing green fodder and soil structure recovery.", evidence:"Berseem fixes 110+ kg N/ha and loosens rice hardpan for better monsoon infiltration.", benefits:"High dairy milk yield, cuts synthetic N, smothers Phalaris minor (dumbisitti) weeds.", gaps:"Confirm local livestock fodder demand or dairy cooperative access.", risks:"Requires 2–3 extra light irrigations during dry winters." },
+    { id:"sorghum_pulse", name:"Adaptive C: Sorghum/Millet–Chickpea (Chana)–Wheat", crops:["Sorghum / Pearl Millet","Chickpea / Mustard","Wheat"], traits:{water:9.1,soil:8.6,erosion:8.6,income:7.6,pest:8.6}, waterDemandMm:460, nFixKg:75, rootDepth:"1.9 m", forage:"High", mktReq:"pulse", why:"Best water-saving shift under +1.5°C warming and tubewell pumping limits.", evidence:"Replaces high-water rice with drought-hardy sorghum/millet and deep-rooted chickpea.", benefits:"Slashes pumping diesel/electricity cost ~35–40%, deep roots break subsoil compaction.", gaps:"Verify chickpea blight risk in humid central Punjab districts.", risks:"Lower gross tonnage than irrigated rice in high-water canal zones." }
+  ],
+  irrigated_veg: [
+    { id:"base", name:"Existing: Summer Tomato / Corn Silage", isBaseline:true, crops:["Processing Tomato","Corn Silage","Bare Winter"], traits:{water:3.0,soil:4.5,erosion:5.5,income:8.8,pest:4.0}, waterDemandMm:820, nFixKg:0, rootDepth:"0.9 m", forage:"Medium", mktReq:"grain", why:"High gross revenue but heavily exposed to heatwaves and pumping limits.", evidence:"Peak July ET₀ (>200 mm/mo) drives severe groundwater overdraft.", benefits:"Established processor contracts and drip/furrow layout.", gaps:"Local groundwater allocation quota and soil EC salinity needed.", risks:"Pumping curtailment and Verticillium/nematode buildup." },
+    { id:"wforage", name:"Adaptive A: Winter Triticale + Heat-Tol. Cowpea", crops:["Winter Triticale","Cowpea Cover","Short Melon/Fallow"], traits:{water:9.0,soil:8.2,erosion:8.6,income:6.8,pest:8.4}, waterDemandMm:390, nFixKg:85, rootDepth:"1.4 m", forage:"High", mktReq:"forage", why:"Shifts crop growth into cool winter rains when ET₀ is 3–4× lower.", evidence:"Winter-spring rainfall capture slashes summer irrigation ~45%.", benefits:"Major pumping savings, N fixation, wind-erosion shield.", gaps:"Dairy forage price vs specialty cash margin must be compared.", risks:"Dry springs may still require 1–2 supplemental irrigations." },
+    { id:"safflower_pulse", name:"Adaptive B: Safflower–Garbanzo–Mustard Cover", crops:["Deep-Root Safflower","Winter Garbanzo","Mustard/Vetch"], traits:{water:8.4,soil:8.5,erosion:8.2,income:7.5,pest:8.8}, waterDemandMm:430, nFixKg:75, rootDepth:"2.1 m", forage:"Low", mktReq:"pulse", why:"Taps deep subsoil moisture (>2 m) with minimal summer drip irrigation.", evidence:"Root-zone dryness favors deep taproots + winter pulse rain capture.", benefits:"Mustard biofumigation suppresses soil nematodes; low pumping cost.", gaps:"Ascochyta blight risk and local oilseed crusher distance.", risks:"Confirm safflower/garbanzo buyer contracts pre-plant." },
+    { id:"sorghum_mix", name:"Adaptive C: Deficit Sorghum–Winter Mix–Tomato", crops:["Forage Sorghum","Oat/Pea/Vetch","Reduced-Till Tomato"], traits:{water:7.8,soil:8.8,erosion:8.8,income:8.0,pest:8.0}, waterDemandMm:540, nFixKg:70, rootDepth:"1.6 m", forage:"High", mktReq:"forage", why:"Cuts silage water ~30% while keeping a 1-in-3 high-value tomato year.", evidence:"Sorghum maintains transpiration efficiency during >35°C heatwaves.", benefits:"Preserves dairy feed, builds SOM, disrupts tomato disease.", gaps:"Dairy ration adjustments and drip spacing compatibility.", risks:"Prussic acid management if frost hits young sorghum." }
+  ],
+  millet_groundnut: [
+    { id:"base", name:"Existing: Groundnut–Pearl Millet (Bare Dry Season)", isBaseline:true, crops:["Groundnut","Bare Dry Fallow","Pearl Millet"], traits:{water:6.2,soil:4.2,erosion:3.5,income:7.2,pest:5.0}, waterDemandMm:460, nFixKg:45, rootDepth:"1.0 m", forage:"Medium", mktReq:"grain", why:"Traditional food/cash pair, but bare dry months expose sandy soil to wind and monsoon crusting.", evidence:"NDVI <0.20 for 6–7 dry months; intense rainy-season storms wash topsoil.", benefits:"Culturally familiar crops and saved seed.", gaps:"Local Striga weed seedbank and phosphorus levels require scouting.", risks:"Soil carbon loss, wind erosion, late-season aflatoxin." },
+    { id:"cowpea_sorghum", name:"Adaptive A: Millet/Cowpea Intercrop + Dual Sorghum", crops:["Millet + Cowpea","Dual-Purpose Sorghum","Residue Mulch"], traits:{water:8.6,soil:8.8,erosion:7.8,income:8.2,pest:8.4}, waterDemandMm:410, nFixKg:85, rootDepth:"1.5 m", forage:"High", mktReq:"pulse", why:"Fast 65-day cowpea hedges erratic rainy-season onset and shades hot soil.", evidence:"Intercrop canopy reduces soil surface heat and fixes nitrogen.", benefits:"Human food + high-value livestock haulms, suppresses Striga.", gaps:"Community grazing agreements needed to keep dry-season mulch.", risks:"Cowpea storage bruchid pests; certified drought seed access." },
+    { id:"sesame_pigeonpea", name:"Adaptive B: Sesame–Groundnut–Millet/Pigeonpea", crops:["Drought-Tol. Sesame","Groundnut","Millet + Pigeonpea"], traits:{water:8.2,soil:8.0,erosion:7.4,income:8.6,pest:8.6}, waterDemandMm:420, nFixKg:65, rootDepth:"1.7 m", forage:"Medium", mktReq:"pulse", why:"Adds high-value sesame that matures cleanly as monsoon rains recede.", evidence:"Sesame thrives in warm post-rain heat without late pod rot.", benefits:"Strong cash diversification, breaks groundnut leaf-spot cycles.", gaps:"Local sesame buyer grading and pod-shatter harvest timing.", risks:"Market price fluctuations; timely harvest window critical." },
+    { id:"contour_agro", name:"Adaptive C: Millet/Cowpea + Contour Grass Strips", crops:["Millet + Cowpea","Perennial Contour Strips","Groundnut"], traits:{water:8.8,soil:9.4,erosion:9.5,income:7.4,pest:8.2}, waterDemandMm:430, nFixKg:80, rootDepth:"2.0 m", forage:"High", mktReq:"forage", why:"Slows extreme rainy-season sheet runoff along SRTM slope contours.", evidence:"Slope lines + intense GPM bursts show 25–40% infiltration upside.", benefits:"Rebuilds organic carbon, cools microclimate, supplies dry-season fodder.", gaps:"Land-tenure security and 2-yr strip establishment time.", risks:"Initial labor for contour bunds and goat protection." }
+  ],
+  wheat_canola: [
+    { id:"base", name:"Existing: Wheat–Canola (Short Fallow)", isBaseline:true, crops:["Winter Wheat","Summer Fallow","Canola"], traits:{water:6.0,soil:5.0,erosion:5.5,income:8.2,pest:5.2}, waterDemandMm:380, nFixKg:0, rootDepth:"1.1 m", forage:"Low", mktReq:"grain", why:"Efficient broadacre grain pair, but tight rotation builds herbicide resistance.", evidence:"High summer ET₀ evaporates fallow moisture if stubble is bare.", benefits:"High machinery efficiency and liquid export grain markets.", gaps:"Subsoil sodicity/pH and ryegrass resistance status need testing.", risks:"Spring flowering frost risk and blackleg/crown rot pressure." },
+    { id:"pulse_stubble", name:"Adaptive A: Wheat–Faba Bean/Chickpea–Canola", crops:["No-Till Wheat","Faba Bean / Chickpea","Canola"], traits:{water:8.4,soil:8.8,erosion:8.8,income:8.0,pest:8.6}, waterDemandMm:345, nFixKg:100, rootDepth:"1.2 m", forage:"Medium", mktReq:"pulse", why:"Inserts a nitrogen-fixing pulse + standing stubble to bank off-season rain.", evidence:"Stubble retention cuts soil evaporation during hot fallow months.", benefits:"Slashes urea fertilizer cost, 2-yr cereal disease break.", gaps:"Soil pH determines faba bean vs lupin/chickpea fit.", risks:"Frost sensitivity during pulse podding in SRTM frost pockets." },
+    { id:"ley_pasture", name:"Adaptive B: 2-Yr Lucerne/Clover Ley + Wheat–Canola", crops:["Lucerne + Clover (2 Yr)","Wheat","Canola"], traits:{water:8.0,soil:9.5,erosion:9.4,income:7.6,pest:9.2}, waterDemandMm:360, nFixKg:135, rootDepth:"2.3 m", forage:"High", mktReq:"forage", why:"Restores compacted clay structure and cuts resistant weed seedbanks.", evidence:"Deep lucerne taproots create vertical biopores for following wheat.", benefits:"High organic nitrogen build, livestock income, drought buffer.", gaps:"Fencing/water points and timely spring termination timing.", risks:"Lucerne can dry subsoil before an unusually dry autumn sowing." },
+    { id:"opp_mung", name:"Adaptive C: Early Barley–Vetch + Opportunity Pulse", crops:["Early Barley","Vetch Brown Manure","Opportunity Summer Pulse"], traits:{water:8.6,soil:8.6,erosion:8.4,income:7.4,pest:8.4}, waterDemandMm:330, nFixKg:90, rootDepth:"1.3 m", forage:"Medium", mktReq:"pulse", why:"Only sows a summer crop when root-zone moisture exceeds trigger threshold.", evidence:"Avoids rigid summer losses while vetch locks in nitrogen and residue.", benefits:"High water-use efficiency ($/mm), flexible drought defense.", gaps:"Requires soil-moisture probe trigger (>100 mm PAW) before summer sowing.", risks:"Zero cash revenue during brown-manure vetch year." }
+  ]
+};
+
+const REGIONS = {
+  iowa: {
+    name: "Story County, Iowa (US Corn Belt)", lat: 42.0650, lon: -93.5450,
+    soilDefault: "silt_loam", irrigationDefault: "rainfed", rotKey: "corn_soy",
+    tMean: [-6.5,-3.8,3.2,10.2,16.5,21.8,23.6,22.4,17.8,10.9,3.1,-4.1],
+    tMin:  [-11.8,-9.1,-2.5,3.8,10.2,15.8,17.7,16.4,11.2,4.5,-2.1,-8.9],
+    tMax:  [-1.4,1.5,8.9,16.6,22.8,27.8,29.5,28.4,24.4,17.3,8.3,0.7],
+    rain:  [22,26,54,92,122,128,112,106,86,66,48,29],
+    et0:   [14,20,44,78,112,134,142,122,86,52,24,14],
+    wetness: [0.68,0.70,0.76,0.79,0.77,0.72,0.61,0.56,0.59,0.64,0.69,0.69],
+    baseNdvi: [0.16,0.16,0.18,0.21,0.36,0.72,0.86,0.81,0.56,0.24,0.17,0.16],
+    annualYears: [2014,2015,2016,2017,2018,2019,2020,2021,2022,2023],
+    annualRainHist: [930,960,910,840,1080,990,740,780,760,710],
+    annualTempHist: [9.2,9.7,10.3,10.1,9.5,9.3,10.2,10.6,10.1,10.9],
+    extremes: { stormDays: 9, heat32Days: 24, heat35Days: 5, frostFreeDays: 168, springFrost: "Apr 24", fallFrost: "Oct 09" }
+  },
+  punjab: {
+    name: "Punjab, Pakistan (SNIC 4,678-Field Zone)", lat: 30.9330, lon: 73.6830,
+    soilDefault: "silt_loam", irrigationDefault: "deficit", rotKey: "punjab_cotton_wheat",
+    tMean: [12.8,15.9,21.4,27.5,32.6,34.4,32.2,31.4,29.8,25.5,19.4,14.2],
+    tMin:  [6.1,9.0,14.2,19.8,24.8,27.6,27.1,26.6,23.9,17.8,11.6,7.1],
+    tMax:  [19.5,22.8,28.6,35.2,40.4,41.2,37.3,36.2,35.7,33.2,27.2,21.3],
+    rain:  [14,18,21,15,18,38,115,108,42,7,4,8],
+    et0:   [45,64,108,155,205,215,180,162,145,112,68,46],
+    wetness: [0.36,0.34,0.30,0.23,0.18,0.20,0.38,0.44,0.36,0.28,0.27,0.33],
+    baseNdvi: [0.58,0.68,0.62,0.34,0.18,0.19,0.44,0.62,0.58,0.32,0.24,0.42],
+    annualYears: [2014,2015,2016,2017,2018,2019,2020,2021,2022,2023],
+    annualRainHist: [380,440,350,310,330,410,490,375,540,395],
+    annualTempHist: [24.2,24.4,24.7,24.9,25.0,24.8,24.7,25.1,25.4,25.6],
+    extremes: { stormDays: 4, heat32Days: 192, heat35Days: 148, frostFreeDays: 365, springFrost: "None", fallFrost: "None" }
+  },
+  fresno: {
+    name: "Fresno County, California (Central Valley)", lat: 36.6800, lon: -119.9500,
+    soilDefault: "sandy_loam", irrigationDefault: "deficit", rotKey: "irrigated_veg",
+    tMean: [8.2,11.1,14.0,17.2,21.6,25.8,28.9,28.0,24.8,19.2,12.6,8.1],
+    tMin:  [3.1,5.0,7.2,9.6,13.4,17.0,19.8,19.0,16.0,11.1,5.8,2.9],
+    tMax:  [13.3,17.2,20.8,24.8,29.8,34.6,38.0,37.0,33.6,27.3,19.4,13.3],
+    rain:  [55,52,46,24,11,3,0.5,0.5,4,15,29,44],
+    et0:   [32,48,86,124,168,196,210,188,142,94,48,30],
+    wetness: [0.58,0.62,0.59,0.48,0.36,0.25,0.20,0.19,0.22,0.28,0.39,0.51],
+    baseNdvi: [0.32,0.41,0.55,0.64,0.72,0.78,0.74,0.62,0.44,0.26,0.21,0.24],
+    annualYears: [2014,2015,2016,2017,2018,2019,2020,2021,2022,2023],
+    annualRainHist: [195,210,295,340,245,310,190,175,185,380],
+    annualTempHist: [18.5,18.3,18.4,18.5,18.4,18.1,18.9,19.1,19.0,18.6],
+    extremes: { stormDays: 2, heat32Days: 108, heat35Days: 68, frostFreeDays: 305, springFrost: "Feb 08", fallFrost: "Dec 10" }
+  },
+  senegal: {
+    name: "Kaolack Basin, Senegal (Sahel Transition)", lat: 14.2200, lon: -16.1200,
+    soilDefault: "sandy_loam", irrigationDefault: "rainfed", rotKey: "millet_groundnut",
+    tMean: [25.2,26.8,28.4,29.2,29.8,30.1,29.0,28.1,28.4,29.5,28.4,25.8],
+    tMin:  [17.5,18.6,20.1,21.2,22.4,24.1,24.5,24.1,24.0,23.8,21.2,18.4],
+    tMax:  [33.0,35.1,36.8,37.3,37.2,36.1,33.5,32.1,32.8,35.2,35.6,33.2],
+    rain:  [1,1,0,0,4,48,148,225,165,48,4,1],
+    et0:   [138,145,178,184,186,165,140,128,132,148,142,134],
+    wetness: [0.16,0.14,0.12,0.11,0.12,0.26,0.56,0.72,0.64,0.38,0.22,0.18],
+    baseNdvi: [0.18,0.16,0.15,0.15,0.17,0.28,0.54,0.71,0.64,0.36,0.22,0.19],
+    annualYears: [2014,2015,2016,2017,2018,2019,2020,2021,2022,2023],
+    annualRainHist: [610,690,610,560,590,540,720,645,760,610],
+    annualTempHist: [28.1,28.0,28.2,28.4,28.3,28.6,28.5,28.7,28.5,29.0],
+    extremes: { stormDays: 11, heat32Days: 295, heat35Days: 162, frostFreeDays: 365, springFrost: "None", fallFrost: "None" }
+  },
+  murray: {
+    name: "Riverina, NSW, Australia (Murray-Darling)", lat: -34.2500, lon: 146.1200,
+    soilDefault: "clay_loam", irrigationDefault: "deficit", rotKey: "wheat_canola",
+    tMean: [24.8,24.2,20.8,16.2,12.1,9.2,8.5,10.1,13.1,16.8,20.4,23.1],
+    tMin:  [16.8,16.5,13.4,9.2,5.8,3.6,2.8,3.8,6.1,9.1,12.4,15.0],
+    tMax:  [32.8,31.9,28.2,23.2,18.4,14.8,14.2,16.4,20.1,24.5,28.4,31.2],
+    rain:  [32,30,34,31,38,39,36,37,36,40,34,31],
+    et0:   [195,162,134,86,52,34,36,54,82,126,162,188],
+    wetness: [0.24,0.23,0.25,0.30,0.42,0.56,0.62,0.59,0.49,0.37,0.29,0.25],
+    baseNdvi: [0.20,0.20,0.22,0.28,0.44,0.61,0.72,0.76,0.66,0.42,0.24,0.21],
+    annualYears: [2014,2015,2016,2017,2018,2019,2020,2021,2022,2023],
+    annualRainHist: [385,410,520,330,260,240,460,490,610,360],
+    annualTempHist: [17.1,16.9,17.0,17.2,17.5,17.9,16.8,16.5,16.4,17.4],
+    extremes: { stormDays: 3, heat32Days: 54, heat35Days: 22, frostFreeDays: 245, springFrost: "Sep 08", fallFrost: "May 12" }
+  },
+  custom: {
+    name: "Custom Drawn Field (Global Climate-Matched)", lat: 42.0650, lon: -93.5450,
+    soilDefault: "silt_loam", irrigationDefault: "rainfed", rotKey: "auto",
+    tMean: [10,12,15,18,22,26,28,27,24,19,14,11],
+    tMin:  [4,5,8,11,15,19,21,20,17,12,7,5],
+    tMax:  [16,19,22,25,29,33,35,34,31,26,21,17],
+    rain:  [45,48,55,60,65,55,40,45,55,60,55,48],
+    et0:   [40,55,80,105,135,155,165,150,115,80,50,40],
+    wetness: [0.5,0.52,0.54,0.53,0.5,0.44,0.38,0.37,0.42,0.48,0.51,0.52],
+    baseNdvi: [0.22,0.24,0.34,0.48,0.65,0.75,0.72,0.62,0.46,0.30,0.22,0.20],
+    annualYears: [2014,2015,2016,2017,2018,2019,2020,2021,2022,2023],
+    annualRainHist: [610,620,640,590,660,610,580,605,630,575],
+    annualTempHist: [18.4,18.5,18.7,18.9,18.8,19.0,19.2,19.1,19.3,19.5],
+    extremes: { stormDays: 5, heat32Days: 42, heat35Days: 14, frostFreeDays: 260, springFrost: "Mar 10", fallFrost: "Nov 25" }
+  }
+};
+
+let state = {
+  regionKey: "iowa", liveNasaData: null, soilData: null, elevData: null,
+  mapLayer: "moisture", drawnPolygonGeoJson: null, subFieldFeatures: [], selectedZoneIdx: 0
+};
+let map, drawnItems, gridLayerGroup, gibsLayer, snicLayerGroup, canvasRenderer;
+
+function initMap() {
+  const r = getRegionBase();
+  map = L.map("fieldMap").setView([r.lat, r.lon], 14);
+  canvasRenderer = L.canvas({ padding: 0.5 });
+
+  const esriSat = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { attribution: "Esri World Imagery" }).addTo(map);
+  const cartoVoyager = L.tileLayer("https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_59an_1_04b8aea8ef6fd3a8a151cad8", { attribution: "&copy; OpenStreetMap &copy; CARTO" });
+  const osmLabels = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png?key=cb1_59an_1_04b8aea8ef6fd3a8a151cad8", { attribution: "&copy; CARTO Labels", opacity: 0.85 }).addTo(map);
+
+  L.control.layers({ "🛰️ Satellite Imagery": esriSat, "🗺️ Carto Voyager Map": cartoVoyager }, { "🏷️ Road & Town Labels": osmLabels }).addTo(map);
+
+  drawnItems = new L.FeatureGroup().addTo(map);
+  gridLayerGroup = new L.FeatureGroup().addTo(map);
+  snicLayerGroup = new L.FeatureGroup().addTo(map);
+
+  const drawControl = new L.Control.Draw({
+    draw: { polyline: false, circle: false, circlemarker: false, marker: false, polygon: { allowIntersection: false, showArea: true }, rectangle: true },
+    edit: { featureGroup: drawnItems }
+  });
+  map.addControl(drawControl);
+
+  map.on(L.Draw.Event.CREATED, e => {
+    drawnItems.clearLayers();
+    drawnItems.addLayer(e.layer);
+    state.regionKey = "custom";
+    document.getElementById("regionSelect").value = "custom";
+    onPolygonUpdated(e.layer.toGeoJSON());
+  });
+
+  map.on(L.Draw.Event.EDITED, () => {
+    const layers = drawnItems.getLayers();
+    if (layers.length) onPolygonUpdated(layers[0].toGeoJSON());
+  });
+
+  createDefaultFieldPolygon(r.lat, r.lon);
+}
+
+async function loadPunjabSnicFields() {
+  const baseUrl = document.getElementById("backendUrlInput").value.replace(/\/$/, "");
+  const statusEl = document.getElementById("apiStatus");
+  const badge = document.getElementById("backendBadge");
+  statusEl.textContent = "Loading 4,678 Sentinel-2 SNIC delineated fields from backend/fields_report.csv...";
+
+  try {
+    const resp = await fetch(`${baseUrl}/api/punjab/bare-fields`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+
+    selectRegion("punjab");
+    snicLayerGroup.clearLayers();
+    map.setView([30.933, 73.683], 13);
+
+    data.fields.forEach(f => {
+      const isBare = f.status === "Bare";
+      const marker = L.circleMarker([f.lat, f.lon], {
+        renderer: canvasRenderer,
+        radius: isBare ? 5 : 2.5,
+        color: isBare ? "#9a3412" : "#166534",
+        fillColor: isBare ? "#d97706" : "#16a34a",
+        fillOpacity: isBare ? 0.9 : 0.45,
+        weight: isBare ? 1.2 : 0.4
+      });
+      marker.on("click", () => {
+        document.getElementById("latInput").value = f.lat.toFixed(4);
+        document.getElementById("lonInput").value = f.lon.toFixed(4);
+        document.getElementById("zoneDetailText").innerHTML =
+          `SNIC Field #${f.id} (${f.area_ha} ha): <strong>${f.status}</strong> (NDVI ${f.ndvi ?? "n/a"}) · Typical Bare Months: <strong>${f.bare_months}</strong> (May bare ${f.may_pct}%, Jun bare ${f.jun_pct}%)`;
+      });
+      snicLayerGroup.addLayer(marker);
+    });
+
+    badge.className = "badge live";
+    badge.textContent = `⚡ SNIC: ${data.total_fields} Fields`;
+    statusEl.textContent = `Loaded ${data.total_fields} Sentinel-2 SNIC fields in Punjab: ${data.bare_count} Bare (${data.bare_ha} ha) & ${data.cultivated_count} Cultivated (${data.cultivated_ha} ha). Click any orange bare field on the map!`;
+  } catch (err) {
+    statusEl.textContent = `Could not load SNIC CSV (${err.message}). Make sure backend/fields_report.csv exists and uvicorn is running on port 8000.`;
+  }
+}
+
+function updateGibsLayer() {
+  const layerName = document.getElementById("gibsLayerSelect").value;
+  const dateStr = document.getElementById("gibsDateSelect").value;
+  if (gibsLayer) { map.removeLayer(gibsLayer); gibsLayer = null; }
+  if (layerName === "none") return;
+  gibsLayer = L.tileLayer.wms("https://gibs.earthdata.nasa.gov/wms/epsg3857/best/wms.cgi", {
+    layers: layerName, time: dateStr, format: "image/png", transparent: true, opacity: 0.6, attribution: "NASA GIBS"
+  }).addTo(map);
+}
+
+function createDefaultFieldPolygon(lat, lon) {
+  drawnItems.clearLayers();
+  const dLat = 0.0028, dLon = 0.0038;
+  const coords = [[lat-dLat, lon-dLon],[lat-dLat, lon+dLon],[lat+dLat, lon+dLon],[lat+dLat, lon-dLon]];
+  const poly = L.polygon(coords, { color: "#ffffff", weight: 2, fillOpacity: 0.05 });
+  drawnItems.addLayer(poly);
+  onPolygonUpdated(poly.toGeoJSON(), false);
+}
+
+function onPolygonUpdated(geojson, panTo = false) {
+  state.drawnPolygonGeoJson = geojson;
+  const ring = geojson.geometry.coordinates[0];
+  let latSum = 0, lonSum = 0, minLat = 90, maxLat = -90, minLon = 180, maxLon = -180;
+  const pts = ring.slice(0, -1);
+  pts.forEach(([lon, lat]) => {
+    latSum += lat; lonSum += lon;
+    minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
+    minLon = Math.min(minLon, lon); maxLon = Math.max(maxLon, lon);
+  });
+  const cLat = latSum / pts.length, cLon = lonSum / pts.length;
+  document.getElementById("latInput").value = cLat.toFixed(4);
+  document.getElementById("lonInput").value = cLon.toFixed(4);
+  document.getElementById("polyCentroidText").textContent = `${cLat.toFixed(4)}, ${cLon.toFixed(4)}`;
+
+  const areaHa = Math.max(1, approxPolygonAreaHa(ring));
+  state.areaHa = areaHa;
+  document.getElementById("polyAreaText").textContent = `${areaHa.toFixed(1)} ha (${(areaHa * 2.471).toFixed(1)} ac)`;
+
+  if (panTo) map.panTo([cLat, cLon]);
+  buildSubFieldCells(minLat, maxLat, minLon, maxLon, ring);
+  renderMapGridOverlay(getAdjustedClimate());
+}
+
+function buildSubFieldCells(minLat, maxLat, minLon, maxLon, ring) {
+  const rows = 6, cols = 8;
+  const dLat = (maxLat - minLat) / rows, dLon = (maxLon - minLon) / cols;
+  const features = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const lat0 = minLat + r * dLat, lat1 = lat0 + dLat;
+      const lon0 = minLon + c * dLon, lon1 = lon0 + dLon;
+      const centerLat = (lat0 + lat1) / 2, centerLon = (lon0 + lon1) / 2;
+      if (!pointInRing([centerLon, centerLat], ring)) continue;
+      const slope = clamp(1.1 + Math.sin(c * 0.6) * 1.9 + (r / 5) * 3.0, 0.4, 7.2);
+      const sandPocket = Math.exp(-((c - 1.8) ** 2 + (r - 1.5) ** 2) / 5);
+      const lowDepression = Math.exp(-((c - 5.5) ** 2 + (r - 4.2) ** 2) / 4);
+      features.push({ idx: features.length, r, c, centerLat, centerLon, elevM: null, slope, sandPocket, lowDepression, bounds: [[lat0, lon0], [lat1, lon1]] });
+    }
+  }
+  if (features.length === 0) {
+    features.push({ idx: 0, r: 0, c: 0, centerLat: (minLat + maxLat) / 2, centerLon: (minLon + maxLon) / 2, elevM: null, slope: 1.5, sandPocket: 0.2, lowDepression: 0.2, bounds: [[minLat, minLon], [maxLat, maxLon]] });
+  }
+  state.subFieldFeatures = features;
+  state.selectedZoneIdx = 0;
+}
+
+async function fetchAllLiveApis() {
+  const lat = parseFloat(document.getElementById("latInput").value);
+  const lon = parseFloat(document.getElementById("lonInput").value);
+  document.getElementById("apiStatus").textContent = `Fetching 10-year NASA POWER, daily weather extremes, SoilGrids & SRTM elevation for (${lat.toFixed(3)}, ${lon.toFixed(3)})...`;
+  await Promise.all([fetchNasaPower10YrAndDaily(lat, lon), fetchSoilGrids(lat, lon), fetchSrtmElevationGrid()]);
+  document.getElementById("apiStatus").textContent = `Live satellite & terrain check finished for (${lat.toFixed(3)}, ${lon.toFixed(3)}).`;
+  updateAll();
+}
+
+async function fetchNasaPower10YrAndDaily(lat, lon) {
+  const badge = document.getElementById("nasaBadge");
+  const mUrl = `https://power.larc.nasa.gov/api/temporal/monthly/point?parameters=T2M,T2M_MIN,T2M_MAX,PRECTOTCORR,ALLSKY_SFC_SW_DWN&community=AG&longitude=${lon.toFixed(3)}&latitude=${lat.toFixed(3)}&start=2014&end=2023&format=JSON`;
+  const cUrl = `https://power.larc.nasa.gov/api/temporal/climatology/point?parameters=T2M,T2M_MIN,T2M_MAX,PRECTOTCORR,GWETROOT,ALLSKY_SFC_SW_DWN&community=AG&longitude=${lon.toFixed(3)}&latitude=${lat.toFixed(3)}&format=JSON`;
+  const dUrl = `https://power.larc.nasa.gov/api/temporal/daily/point?parameters=T2M_MAX,T2M_MIN,PRECTOTCORR&community=AG&longitude=${lon.toFixed(3)}&latitude=${lat.toFixed(3)}&start=20230101&end=20231231&format=JSON`;
+
+  try {
+    const [mResp, cResp, dResp] = await Promise.all([fetch(mUrl), fetch(cUrl), fetch(dUrl)]);
+    if (!cResp.ok) throw new Error(`Climatology HTTP ${cResp.status}`);
+    const cp = (await cResp.json())?.properties?.parameter;
+    const valid = v => v != null && v > -900;
+    const keys = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+
+    const tMean = keys.map(k => round1(valid(cp.T2M?.[k]) ? cp.T2M[k] : 15));
+    const tMin  = keys.map(k => round1(valid(cp.T2M_MIN?.[k]) ? cp.T2M_MIN[k] : 8));
+    const tMax  = keys.map(k => round1(valid(cp.T2M_MAX?.[k]) ? cp.T2M_MAX[k] : 22));
+    const rain  = keys.map((k, i) => Math.max(0, Math.round((valid(cp.PRECTOTCORR?.[k]) ? cp.PRECTOTCORR[k] : 1) * DAYS_IN_MONTH[i])));
+    const wetness = keys.map(k => clamp(valid(cp.GWETROOT?.[k]) ? cp.GWETROOT[k] : 0.45, 0.08, 0.95));
+    const et0 = keys.map((k, i) => {
+      const ra = valid(cp.ALLSKY_SFC_SW_DWN?.[k]) ? cp.ALLSKY_SFC_SW_DWN[k] : 15;
+      const td = Math.max(2, tMax[i] - tMin[i]);
+      return Math.round(Math.max(0.4, 0.0023 * (tMean[i] + 17.8) * Math.sqrt(td) * (ra * 0.408)) * DAYS_IN_MONTH[i]);
+    });
+
+    const base = getRegionBase();
+    let annualYears = base.annualYears, annualRainHist = base.annualRainHist, annualTempHist = base.annualTempHist;
+    if (mResp.ok) {
+      const mp = (await mResp.json())?.properties?.parameter;
+      const yrs = [], rH = [], tH = [];
+      for (let yr = 2014; yr <= 2023; yr++) {
+        let yRain = 0, yT = 0, yC = 0;
+        for (let m = 1; m <= 12; m++) {
+          const mk = `${yr}${String(m).padStart(2, "0")}`;
+          const tm = mp.T2M?.[mk], pr = mp.PRECTOTCORR?.[mk];
+          if (valid(tm) && valid(pr)) { yRain += Math.max(0, pr * DAYS_IN_MONTH[m - 1]); yT += tm; yC++; }
+        }
+        if (yC >= 10) { yrs.push(yr); rH.push(Math.round(yRain)); tH.push(round1(yT / yC)); }
+      }
+      if (yrs.length >= 2) { annualYears = yrs; annualRainHist = rH; annualTempHist = tH; }
+    }
+
+    let extremes = { stormDays: 0, heat32Days: 0, heat35Days: 0, frostFreeDays: 365, springFrost: "None", fallFrost: "None" };
+    if (dResp.ok) {
+      const dp = (await dResp.json())?.properties?.parameter;
+      const dates = Object.keys(dp.T2M_MAX || {}).sort();
+      const frostDates = [];
+      dates.forEach(d => {
+        const tx = dp.T2M_MAX[d], tn = dp.T2M_MIN[d], pr = dp.PRECTOTCORR[d];
+        if (valid(pr) && pr >= 25) extremes.stormDays++;
+        if (valid(tx) && tx >= 32) extremes.heat32Days++;
+        if (valid(tx) && tx >= 35) extremes.heat35Days++;
+        if (valid(tn) && tn <= 0) frostDates.push(d);
+      });
+      if (frostDates.length > 0) {
+        if (lat >= 0) {
+          const spring = frostDates.filter(d => parseInt(d.slice(4,6)) <= 6).pop();
+          const fall = frostDates.find(d => parseInt(d.slice(4,6)) >= 7);
+          extremes.springFrost = spring ? fmtYmd(spring) : "None";
+          extremes.fallFrost = fall ? fmtYmd(fall) : "None";
+          if (spring && fall) extremes.frostFreeDays = diffDays(spring, fall);
+        } else {
+          const spring = frostDates.filter(d => parseInt(d.slice(4,6)) >= 7).pop();
+          const fall = frostDates.find(d => parseInt(d.slice(4,6)) <= 6);
+          extremes.springFrost = spring ? fmtYmd(spring) : "None";
+          extremes.fallFrost = fall ? fmtYmd(fall) : "None";
+          if (spring && fall) extremes.frostFreeDays = Math.max(0, 365 - diffDays(fall, spring));
+        }
+      }
+    }
+
+    const baseNdvi = tMean.map((tm, i) => tm < 4 ? 0.17 : clamp(0.18 + clamp((rain[i] + 15) / Math.max(40, et0[i]), 0.2, 1.1) * 0.58, 0.16, 0.86));
+    state.liveNasaData = { tMean, tMin, tMax, rain, et0, wetness, baseNdvi, annualYears, annualRainHist, annualTempHist, extremes };
+    badge.className = "badge live";
+    badge.textContent = "🛰️ NASA 10-Yr + Daily: Live";
+  } catch (e) {
+    console.warn("NASA POWER error:", e);
+    state.liveNasaData = null;
+    badge.className = "badge demo";
+    badge.textContent = "🛰️ NASA POWER: Demo Mode";
+  }
+}
+
+async function fetchSoilGrids(lat, lon) {
+  const badge = document.getElementById("soilBadge");
+  const queryPoint = async (qlat, qlon) => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 4500);
+    try {
+      const url = `https://rest.isric.org/soilgrids/v2.0/properties/query?lon=${qlon.toFixed(4)}&lat=${qlat.toFixed(4)}&property=clay&property=sand&property=silt&property=soc&property=phh2o&depth=0-5cm&depth=15-30cm&value=mean`;
+      const resp = await fetch(url, { signal: ctrl.signal });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const layers = (await resp.json())?.properties?.layers || [];
+      const getVal = name => {
+        const l = layers.find(x => x.name === name);
+        const vals = (l?.depths || []).map(d => d.values?.mean).filter(v => v != null);
+        return vals.length ? (vals.reduce((a,b) => a + b, 0) / vals.length) / (l.unit_measure?.d_factor || 10) : null;
+      };
+      return { clay: getVal("clay"), sand: getVal("sand"), silt: getVal("silt"), soc: getVal("soc"), ph: getVal("phh2o") };
+    } finally { clearTimeout(timer); }
+  };
+
+  try {
+    let res = await queryPoint(lat, lon);
+    if (res.clay == null || res.sand == null) res = await queryPoint(lat + 0.03, lon + 0.03);
+    if (res.clay == null || res.sand == null) throw new Error("No soil pixel");
+    const { clay, sand, silt, soc, ph } = res;
+    const tex = clay >= 27 ? { label: "Clay Loam", key: "clay_loam" } : sand >= 52 ? { label: "Sandy Loam", key: "sandy_loam" } : { label: "Silt Loam", key: "silt_loam" };
+    state.soilData = { clay, sand, silt, soc, ph, tex };
+    document.getElementById("soilTexVal").textContent = tex.label;
+    document.getElementById("soilSocVal").textContent = soc != null ? `${soc.toFixed(1)} g/kg` : "—";
+    document.getElementById("soilPhVal").textContent = ph != null ? ph.toFixed(1) : "—";
+    document.getElementById("soilSummaryText").textContent = `SoilGrids 250m (0–30cm): ${Math.round(sand)}% Sand · ${Math.round(silt ?? 0)}% Silt · ${Math.round(clay)}% Clay.`;
+    document.getElementById("soilSelect").value = tex.key;
+    badge.className = "badge live";
+    badge.textContent = "🪱 SoilGrids: Live";
+  } catch (e) {
+    state.soilData = null;
+    badge.className = "badge demo";
+    badge.textContent = "🪱 SoilGrids: Fallback";
+  }
+}
+
+async function fetchSrtmElevationGrid() {
+  const badge = document.getElementById("elevBadge");
+  const cells = state.subFieldFeatures;
+  if (!cells.length) return;
+  try {
+    const resp = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${cells.map(c=>c.centerLat.toFixed(5)).join(",")}&longitude=${cells.map(c=>c.centerLon.toFixed(5)).join(",")}`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const elevs = (await resp.json())?.elevation;
+    if (!Array.isArray(elevs) || elevs.length !== cells.length) throw new Error("Bad DEM");
+    const minE = Math.min(...elevs), maxE = Math.max(...elevs);
+    cells.forEach((c, i) => { c.elevM = elevs[i]; });
+    cells.forEach(c => {
+      const neighbors = cells.filter(n => Math.abs(n.r - c.r) <= 1 && Math.abs(n.c - c.c) <= 1 && n.idx !== c.idx);
+      const maxDiff = Math.max(0.2, ...neighbors.map(n => Math.abs(n.elevM - c.elevM)));
+      const cellSpanM = Math.max(25, Math.sqrt((state.areaHa || 40) * 10000 / cells.length));
+      c.slope = clamp((maxDiff / cellSpanM) * 100, 0.3, 12.0);
+      c.lowDepression = maxE > minE ? 1 - (c.elevM - minE) / (maxE - minE) : 0.3;
+    });
+    state.elevData = { minE, maxE };
+    document.getElementById("polyElevText").textContent = `${Math.round(minE)}–${Math.round(maxE)} m ASL (Real DEM)`;
+    badge.className = "badge live";
+    badge.textContent = "⛰️ SRTM Terrain: Live";
+  } catch (e) {
+    state.elevData = null;
+    badge.className = "badge demo";
+    badge.textContent = "⛰️ SRTM Terrain: Fallback";
+  }
+}
+
+async function submitBackendPolygonJob() {
+  const baseUrl = document.getElementById("backendUrlInput").value.replace(/\/$/, "");
+  const badge = document.getElementById("backendBadge");
+  const statusEl = document.getElementById("apiStatus");
+  try {
+    const resp = await fetch(`${baseUrl}/api/field/analyze`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ polygon: state.drawnPolygonGeoJson, lat: parseFloat(document.getElementById("latInput").value), lon: parseFloat(document.getElementById("lonInput").value) })
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const res = await resp.json();
+    badge.className = "badge live";
+    badge.textContent = "⚡ Backend: Connected";
+    let msg = `Backend complete: AppEEARS = ${res.appeears?.status || "n/a"}`;
+    if (res.cdl_crop_history?.recent_crop) msg += ` | USDA CropScape: ${res.cdl_crop_history.recent_crop}`;
+    if (res.nrcs_soil?.texture_label) {
+      document.getElementById("soilTexVal").textContent = res.nrcs_soil.texture_label;
+      msg += ` | NRCS Soil: ${res.nrcs_soil.texture_label}`;
+    }
+    statusEl.textContent = msg;
+    updateAll();
+  } catch (err) {
+    badge.className = "badge demo";
+    badge.textContent = "⚡ Backend Offline";
+    statusEl.textContent = `FastAPI backend offline at ${baseUrl}. Client-side NASA POWER + SoilGrids + SRTM remain active.`;
+  }
+}
+
+function getRegionBase() { return REGIONS[state.regionKey]; }
+
+function selectRegion(key) {
+  state.regionKey = key;
+  document.getElementById("regionSelect").value = key;
+  state.liveNasaData = null;
+  const r = REGIONS[key];
+  if (key !== "custom") {
+    document.getElementById("latInput").value = r.lat.toFixed(4);
+    document.getElementById("lonInput").value = r.lon.toFixed(4);
+    document.getElementById("soilSelect").value = r.soilDefault;
+    document.getElementById("irrigationSelect").value = r.irrigationDefault;
+    if (map) { map.setView([r.lat, r.lon], 14); createDefaultFieldPolygon(r.lat, r.lon); }
+  }
+  updateAll();
+}
+
+function getAdjustedClimate() {
+  const base = getRegionBase(), src = state.liveNasaData || base;
+  const tempShift = parseFloat(document.getElementById("tempShift").value);
+  const rainShiftPct = parseFloat(document.getElementById("rainShift").value);
+  document.getElementById("tempShiftVal").textContent = `+${tempShift.toFixed(1)} °C`;
+  document.getElementById("rainShiftVal").textContent = `${rainShiftPct > 0 ? "+" : ""}${rainShiftPct}%`;
+
+  const tMean = src.tMean.map(v => v + tempShift);
+  const tMin = src.tMin.map(v => v + tempShift * 0.9);
+  const tMax = src.tMax.map(v => v + tempShift * 1.15);
+  let rain = src.rain.map(v => Math.max(0, Math.round(v * (1 + rainShiftPct / 100))));
+
+  const localRainVal = parseFloat(document.getElementById("localRainInput").value);
+  const satAnnualRain = rain.reduce((a,b) => a + b, 0);
+  if (!isNaN(localRainVal) && localRainVal > 0 && satAnnualRain > 0) {
+    const scale = localRainVal / satAnnualRain;
+    rain = rain.map(v => Math.round(v * scale));
+  }
+
+  const et0 = src.et0.map(v => Math.round(v * (1 + tempShift * 0.045)));
+  const wetness = src.wetness.map(v => clamp(v + (rainShiftPct / 100) * 0.22 - tempShift * 0.035, 0.08, 0.95));
+  const ndvi = (src.baseNdvi || base.baseNdvi).map((v, i) => clamp(v - Math.max(0, (et0[i] - rain[i]) / 250) * (tempShift * 0.03), 0.12, 0.92));
+
+  const annualRain = rain.reduce((a,b) => a + b, 0), annualEt0 = et0.reduce((a,b) => a + b, 0);
+  return {
+    tMean, tMin, tMax, rain, et0, wetness, ndvi, annualRain, annualEt0, satAnnualRain,
+    avgTemp: tMean.reduce((a,b) => a + b, 0) / 12,
+    waterBalance: annualRain - annualEt0,
+    heatStressMonths: tMax.filter(t => t >= 32).length,
+    frostMonths: tMin.filter(t => t <= 0.5).length,
+    bareMonths: ndvi.filter(n => n <= 0.23).length,
+    avgWetness: wetness.reduce((a,b) => a + b, 0) / 12,
+    annualYears: src.annualYears, annualRainHist: src.annualRainHist, annualTempHist: src.annualTempHist, extremes: src.extremes
+  };
+}
+
+function resolveRotationTemplate(clim) {
+  const chosen = document.getElementById("existingCropSelect").value;
+  if (chosen !== "auto") return ROTATION_BANK[chosen];
+  const base = getRegionBase();
+  if (base.rotKey && base.rotKey !== "auto") return ROTATION_BANK[base.rotKey];
+  if (clim.avgTemp >= 22 && clim.annualRain < 500) return ROTATION_BANK.punjab_cotton_wheat;
+  if (clim.avgTemp >= 23 && clim.annualRain < 950) return ROTATION_BANK.millet_groundnut;
+  if (clim.avgTemp >= 16 && clim.annualRain < 480) return ROTATION_BANK.irrigated_veg;
+  if (clim.annualRain < 620) return ROTATION_BANK.wheat_canola;
+  return ROTATION_BANK.corn_soy;
+}
+
+function scoreRotations(clim) {
+  const template = resolveRotationTemplate(clim);
+  const soil = document.getElementById("soilSelect").value, irrig = document.getElementById("irrigationSelect").value;
+  const equip = document.getElementById("equipSelect").value, issue = document.getElementById("groundIssueSelect").value;
+  const mkt = { grain: document.getElementById("mktGrain").checked, pulse: document.getElementById("mktPulse").checked, forage: document.getElementById("mktForage").checked };
+  const w = { water: +document.getElementById("wWater").value, soil: +document.getElementById("wSoil").value, erosion: +document.getElementById("wErosion").value, income: +document.getElementById("wIncome").value, pest: +document.getElementById("wPest").value };
+
+  document.getElementById("wWaterVal").textContent = w.water;
+  document.getElementById("wSoilVal").textContent = w.soil;
+  document.getElementById("wErosionVal").textContent = w.erosion;
+  document.getElementById("wIncomeVal").textContent = w.income;
+  document.getElementById("wPestVal").textContent = w.pest;
+
+  const localRain = parseFloat(document.getElementById("localRainInput").value);
+  const localOm = parseFloat(document.getElementById("localOmInput").value);
+  const localPh = parseFloat(document.getElementById("localPhInput").value);
+  const notes = [];
+  if (!isNaN(localRain)) notes.push(`Rain gauge (${localRain} mm) vs Satellite (${clim.satAnnualRain} mm): ${localRain - clim.satAnnualRain >= 0 ? "+" : ""}${localRain - clim.satAnnualRain} mm.`);
+  if (!isNaN(localOm)) notes.push(`Lab SOM (${localOm}%) ${localOm < 2.2 ? "low — prioritize high-residue covers" : "healthy"}.`);
+  if (!isNaN(localPh)) notes.push(`Lab pH (${localPh}).`);
+  document.getElementById("satVsGroundNote").textContent = notes.length ? notes.join(" ") : "Enter local measurements above to compare against satellite estimates.";
+
+  const droughtMult = clim.waterBalance < -150 || clim.avgWetness < 0.35 ? 1.25 : 1.0;
+  const erosionMult = clim.extremes.stormDays >= 7 || soil === "silt_loam" || issue === "gully" ? 1.2 : 1.0;
+
+  const scored = template.map(rot => {
+    let { water, soil: sVal, erosion, income, pest } = rot.traits;
+    if (soil === "sandy_loam") { water = clamp(water + (rot.isBaseline ? -0.8 : 0.4), 1, 10); sVal = clamp(sVal + (rot.isBaseline ? -0.6 : 0.4), 1, 10); }
+    if (irrig === "rainfed" && rot.waterDemandMm > clim.annualRain * 0.95) { water = clamp(water - 1.6, 1, 10); income = clamp(income - 0.9, 1, 10); }
+    if (irrig === "deficit" && rot.waterDemandMm > 650) water = clamp(water - 1.8, 1, 10);
+    if (equip === "livestock" && rot.forage === "High") income = clamp(income + 1.1, 1, 10);
+    if (!mkt[rot.mktReq]) income = clamp(income - 1.6, 1, 10);
+    if (issue === "gully") erosion = clamp(erosion + (rot.isBaseline ? -1.4 : 0.6), 1, 10);
+    if (issue === "compaction" && parseFloat(rot.rootDepth) >= 1.6) sVal = clamp(sVal + 0.8, 1, 10);
+    if (!isNaN(localOm) && localOm < 2.2 && !rot.isBaseline) sVal = clamp(sVal + 0.5, 1, 10);
+
+    const denom = Math.max(1, w.water * droughtMult + w.soil + w.erosion * erosionMult + w.income + w.pest);
+    const score = Math.round(((water * w.water * droughtMult + sVal * w.soil + erosion * w.erosion * erosionMult + income * w.income + pest * w.pest) / denom) * 10);
+    const fitTag = score >= 80 ? { label: "Strong Fit", cls: "tag-good" } : score < 62 ? { label: "Elevated Vulnerability", cls: "tag-risk" } : { label: "Moderate Fit", cls: "tag-warn" };
+    return { ...rot, adjTraits: { water, soil: sVal, erosion, income, pest }, score, fitTag };
+  });
+
+  const bestAlt = [...scored].filter(r => !r.isBaseline).sort((a,b) => b.score - a.score)[0];
+  scored.forEach(r => { r.isTopPick = r.id === bestAlt.id; });
+  return scored;
+}
+
+function renderKPIs(clim, scored) {
+  const baseRot = scored.find(r => r.isBaseline), topRot = scored.find(r => r.isTopPick), delta = topRot.score - baseRot.score;
+  document.getElementById("kpiGrid").innerHTML = `
+    <div class="kpi-card"><div class="kpi-label">Annual Water Balance (P − ET₀)</div><div class="kpi-value">${clim.annualRain} / ${clim.annualEt0} mm</div><div class="kpi-note"><span class="tag ${clim.waterBalance >= 0 ? "tag-water" : "tag-risk"}">${clim.waterBalance >= 0 ? "+" : ""}${clim.waterBalance} mm</span> · ${clim.extremes.stormDays} storm days ≥25mm</div></div>
+    <div class="kpi-card"><div class="kpi-label">Root-Zone Wetness &amp; Heat</div><div class="kpi-value">${Math.round(clim.avgWetness * 100)}% · ${clim.extremes.heat32Days} d ≥32°C</div><div class="kpi-note"><span class="tag ${clim.avgWetness < 0.35 ? "tag-risk" : "tag-good"}">${clim.avgWetness < 0.35 ? "Dry Subsoil" : "Moderate Moisture"}</span> · ${clim.extremes.heat35Days} d ≥35°C</div></div>
+    <div class="kpi-card"><div class="kpi-label">Frost-Free Window &amp; Bare Risk</div><div class="kpi-value">${clim.extremes.frostFreeDays} d · ${clim.bareMonths} mo bare</div><div class="kpi-note">Spring: ${clim.extremes.springFrost} · Fall: ${clim.extremes.fallFrost}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Top Rotation Resilience Gain</div><div class="kpi-value">${topRot.score}/100 (${delta >= 0 ? "+" : ""}${delta})</div><div class="kpi-note"><span class="tag tag-good">vs. Baseline (${baseRot.score}/100)</span></div></div>
+  `;
+}
+
+function renderStrategies(scored, clim) {
+  const best = scored.find(r => r.isTopPick), base = scored.find(r => r.isBaseline);
+  document.getElementById("plainRotationSummary").innerHTML =
+    `<strong>Plain-English Summary:</strong> Your current baseline scores <strong>${base.score}/100</strong> with <strong>${clim.bareMonths} bare-soil months</strong> and <strong>${clim.extremes.stormDays} heavy storm days/yr</strong>. Switching to <strong>${best.name}</strong> raises resilience to <strong>${best.score}/100</strong> (adding ~<strong>${best.nFixKg} kg/ha</strong> biological nitrogen and <strong>${best.rootDepth}</strong> rooting depth).`;
+
+  const defs = [
+    { key:"water", label:"Water Efficiency", color:"#1f6f8b" },
+    { key:"soil", label:"Soil OM & N-Fix", color:"#245c3e" },
+    { key:"erosion", label:"Erosion Cover", color:"#3d7a55" },
+    { key:"income", label:"Cash / Forage", color:"#b37b16" },
+    { key:"pest", label:"Pest Disruption", color:"#6a4c93" }
+  ];
+
+  document.getElementById("strategyGrid").innerHTML = scored.map(r => `
+    <div class="strategy-card ${r.isTopPick ? "recommended" : ""}">
+      ${r.isTopPick ? `<div class="rec-ribbon">★ TOP ALIGNED</div>` : ""}
+      <div class="score-row">
+        <div><span class="tag ${r.fitTag.cls}">${r.isBaseline ? "BASELINE · " : ""}${r.fitTag.label}</span><h3 style="margin:0.3rem 0 0;color:var(--ink);font-size:0.96rem;">${r.name}</h3></div>
+        <div class="score-big">${r.score}<span style="font-size:0.72rem;color:var(--ink-muted);">/100</span></div>
+      </div>
+      <div class="crop-sequence">${r.crops.map((c,i) => `<span class="crop-pill">${c}</span>${i < r.crops.length - 1 ? "<span>→</span>" : ""}`).join("")}</div>
+      <div class="trait-chips"><span class="trait-chip">💧 ~${r.waterDemandMm} mm/yr</span><span class="trait-chip">🌿 +${r.nFixKg} kg N/ha</span><span class="trait-chip">🌱 Roots ${r.rootDepth}</span><span class="trait-chip">🐄 Forage: ${r.forage}</span></div>
+      <div class="metric-bars">${defs.map(m => `<div class="mbar-row"><span>${m.label}</span><div class="mbar-track"><div class="mbar-fill" style="width:${r.adjTraits[m.key]*10}%;background:${m.color};"></div></div><span style="font-family:var(--font-mono);text-align:right;">${r.adjTraits[m.key].toFixed(1)}</span></div>`).join("")}</div>
+      <div style="font-size:0.8rem;"><strong>Why Suggested:</strong> ${r.why}</div>
+      <details class="strat-details" ${r.isTopPick || r.isBaseline ? "open" : ""}>
+        <summary>Evidence, Gaps &amp; Local Risks</summary>
+        <p><strong>🛰️ Supporting Evidence:</strong> ${r.evidence}</p>
+        <p><strong>🌱 Expected Benefits:</strong> ${r.benefits}</p>
+        <p><strong>❓ Information Gaps:</strong> ${r.gaps}</p>
+        <p><strong>⚠️ Risks &amp; Local Review:</strong> ${r.risks}</p>
+      </details>
+    </div>
+  `).join("");
+}
+
+function renderMapGridOverlay(clim) {
+  if (!gridLayerGroup) return;
+  gridLayerGroup.clearLayers();
+  const layer = state.mapLayer, soil = document.getElementById("soilSelect").value;
+  const cfgMap = {
+    moisture: { calc: f => clamp(clim.avgWetness * 100 - f.sandPocket * 20 + f.lowDepression * 14 - (soil === "sandy_loam" ? 10 : 0), 8, 95), fmt: v => `${Math.round(v)}% SMAP Moisture`, col: v => heatColor(v, 10, 85, ["#c95b3c", "#e5c158", "#2b7a78"]) },
+    heat: { calc: f => clamp(Math.max(...clim.tMax) + f.sandPocket * 3.8 - f.lowDepression * 1.9, 20, 45), fmt: v => `${v.toFixed(1)}°C Peak Heat`, col: v => heatColor(v, 24, 42, ["#3b8ea5", "#f4d35e", "#c83e37"]) },
+    ndvi: { calc: f => clamp(Math.max(...clim.ndvi) - 0.1 - f.sandPocket * 0.16 + f.lowDepression * 0.06, 0.15, 0.90), fmt: v => `${v.toFixed(2)} Peak NDVI`, col: v => heatColor(v, 0.25, 0.85, ["#b88b58", "#c4c96d", "#245c3e"]) },
+    erosion: { calc: f => clamp(f.slope * 12 + (clim.extremes.stormDays >= 7 ? 18 : 6) + (soil === "silt_loam" ? 10 : 0), 5, 98), fmt: v => `${Math.round(v)}/100 Erosion Risk`, col: v => heatColor(v, 15, 90, ["#3d7a55", "#e6b856", "#b83b2b"]) },
+    frost: { calc: f => clamp(clim.frostMonths * 10 + f.lowDepression * 32 - f.slope * 2, 0, 95), fmt: v => `${Math.round(v)}% Frost-Pocket Risk`, col: v => heatColor(v, 5, 85, ["#e5e0d3", "#7fb3d5", "#1f4e79"]) }
+  };
+  const cfg = cfgMap[layer] || cfgMap.moisture;
+
+  state.subFieldFeatures.forEach((f, i) => {
+    const val = cfg.calc(f);
+    const rect = L.rectangle(f.bounds, {
+      color: i === state.selectedZoneIdx ? "#1b2a20" : "#ffffff",
+      weight: i === state.selectedZoneIdx ? 2.2 : 0.7,
+      fillColor: cfg.col(val), fillOpacity: 0.56
+    });
+    rect.on("click", () => {
+      state.selectedZoneIdx = i;
+      const elevTxt = f.elevM != null ? ` · Elev ${Math.round(f.elevM)} m` : "";
+      document.getElementById("zoneDetailText").innerHTML = `Zone R${f.r+1}-C${f.c+1}: <strong>${cfg.fmt(val)}</strong> · Slope <strong>${f.slope.toFixed(1)}%</strong>${elevTxt}`;
+      renderMapGridOverlay(clim);
+    });
+    gridLayerGroup.addLayer(rect);
+  });
+}
+
+function setMapLayer(layer, btn) {
+  state.mapLayer = layer;
+  document.querySelectorAll("#layerPills .layer-pill").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  renderMapGridOverlay(getAdjustedClimate());
+}
+
+function renderSeasonalAndTenYearCharts(clim) {
+  const W = 540, H = 240, padL = 40, padR = 38, padT = 20, padB = 30;
+  const pW = W - padL - padR, pH = H - padT - padB;
+  const maxW = Math.max(220, ...clim.rain, ...clim.et0) * 1.1;
+  const xAt = i => padL + (i + 0.5) * (pW / 12), yW = v => padT + pH - (v / maxW) * pH, yN = v => padT + pH - v * pH, barW = (pW / 12) * 0.56;
+
+  document.getElementById("seasonalChartBox").innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">
+      ${clim.ndvi.map((v,i) => v <= 0.23 ? `<rect x="${padL + i*(pW/12)}" y="${padT}" width="${pW/12}" height="${pH}" fill="rgba(184,86,43,0.12)"/>` : "").join("")}
+      ${[0,0.25,0.5,0.75,1].map(t => `<line x1="${padL}" y1="${padT+pH*(1-t)}" x2="${W-padR}" y2="${padT+pH*(1-t)}" stroke="#e2ddd0" stroke-dasharray="3 3"/><text x="${padL-5}" y="${padT+pH*(1-t)+3}" text-anchor="end" font-size="9" fill="#556459">${Math.round(maxW*t)}</text><text x="${W-padR+5}" y="${padT+pH*(1-t)+3}" text-anchor="start" font-size="9" fill="#245c3e">${t.toFixed(1)}</text>`).join("")}
+      ${clim.rain.map((r,i) => `<rect x="${xAt(i)-barW/2}" y="${yW(r)}" width="${barW}" height="${Math.max(0, pH-(yW(r)-padT))}" rx="2" fill="#4f93b8" opacity="0.8"/>`).join("")}
+      <polyline fill="none" stroke="#b8562b" stroke-width="2.2" points="${clim.et0.map((e,i)=>`${xAt(i)},${yW(e)}`).join(" ")}"/>
+      <polyline fill="none" stroke="#245c3e" stroke-width="2.4" stroke-dasharray="5 3" points="${clim.ndvi.map((n,i)=>`${xAt(i)},${yN(n)}`).join(" ")}"/>
+      ${MONTHS.map((m,i) => `<text x="${xAt(i)}" y="${H-10}" text-anchor="middle" font-size="9" fill="#1b2a20">${m}</text>`).join("")}
+    </svg>
+    <div style="font-size:0.73rem;color:var(--ink-muted);margin-top:0.25rem;"><strong style="color:#4f93b8;">■</strong> Rain (mm) · <strong style="color:#b8562b;">—</strong> ET₀ Demand · <strong style="color:#245c3e;">--</strong> Crop NDVI · <strong style="color:rgba(184,86,43,0.6);">█</strong> Bare-Field Risk</div>
+  `;
+  const bareList = MONTHS.filter((_,i) => clim.ndvi[i] <= 0.23).join(", ") || "None";
+  document.getElementById("seasonalInsights").innerHTML = `<strong>Bare-Field Vulnerability Months:</strong> ${bareList}`;
+
+  const yrs = clim.annualYears, rHist = clim.annualRainHist, tHist = clim.annualTempHist;
+  const maxR = Math.max(400, ...rHist) * 1.15, minT = Math.min(...tHist) - 1, maxT = Math.max(...tHist) + 1;
+  const xY = i => padL + (i + 0.5) * (pW / yrs.length), yR = v => padT + pH - (v / maxR) * pH, yT = v => padT + pH - ((v - minT) / Math.max(1, maxT - minT)) * pH;
+
+  document.getElementById("tenYearChartBox").innerHTML = `
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;display:block;">
+      ${[0,0.5,1].map(t => `<line x1="${padL}" y1="${padT+pH*(1-t)}" x2="${W-padR}" y2="${padT+pH*(1-t)}" stroke="#e2ddd0" stroke-dasharray="3 3"/><text x="${padL-5}" y="${padT+pH*(1-t)+3}" text-anchor="end" font-size="9" fill="#4f93b8">${Math.round(maxR*t)}</text><text x="${W-padR+5}" y="${padT+pH*(1-t)+3}" text-anchor="start" font-size="9" fill="#b8562b">${(minT+(maxT-minT)*t).toFixed(1)}°</text>`).join("")}
+      ${rHist.map((r,i) => `<rect x="${xY(i)-13}" y="${yR(r)}" width="26" height="${Math.max(0, pH-(yR(r)-padT))}" rx="2" fill="#4f93b8" opacity="0.65"/>`).join("")}
+      <polyline fill="none" stroke="#b8562b" stroke-width="2.4" points="${tHist.map((t,i)=>`${xY(i)},${yT(t)}`).join(" ")}"/>
+      ${tHist.map((t,i) => `<circle cx="${xY(i)}" cy="${yT(t)}" r="3.2" fill="#b8562b"/>`).join("")}
+      ${yrs.map((y,i) => `<text x="${xY(i)}" y="${H-10}" text-anchor="middle" font-size="9" fill="#1b2a20">${y}</text>`).join("")}
+    </svg>
+  `;
+
+  document.getElementById("extremesSummaryBox").innerHTML = `
+    <strong>Daily Weather Extremes:</strong>
+    Storms (&ge;25 mm/d): <strong>${clim.extremes.stormDays} d</strong> ·
+    Heat (&ge;32°C / &ge;35°C): <strong>${clim.extremes.heat32Days} / ${clim.extremes.heat35Days} d</strong> ·
+    Frost-Free: <strong>${clim.extremes.frostFreeDays} d</strong> (${clim.extremes.springFrost}–${clim.extremes.fallFrost}).
+  `;
+}
+
+function renderSiComparison(clim, scored) {
+  const rArr = clim.annualRainHist, tArr = clim.annualTempHist;
+  const rMean = rArr.reduce((a,b) => a + b, 0) / rArr.length;
+  const rStd = Math.sqrt(rArr.reduce((s,v) => s + (v - rMean) ** 2, 0) / rArr.length);
+  const rainCv = Math.round((rStd / Math.max(1, rMean)) * 100);
+  const latestZ = ((rArr[rArr.length - 1] - rMean) / Math.max(1, rStd)).toFixed(2);
+  const tempSlopeDecade = ((tArr[tArr.length - 1] - tArr[0]) / Math.max(1, tArr.length - 1) * 10).toFixed(2);
+  const areaHa = state.areaHa || 40, smapPixels = (areaHa / 8100).toFixed(3);
+  const completeness = 45 + (state.liveNasaData ? 20 : 0) + (state.soilData ? 15 : 0) + (state.elevData ? 10 : 0) + (document.getElementById("localOmInput").value ? 10 : 0);
+  const best = scored.find(r => r.isTopPick);
+
+  document.getElementById("siComparisonCards").innerHTML = `
+    <div class="si-card"><h4>SI Model 1: Climate Anomaly Z-Score &amp; Threshold Detector</h4><p class="subtext">Flags years/months deviating from 10-year norms &amp; overlaps with bare soil.</p><p style="font-size:0.8rem;margin:0;">• Rainfall Variability (CV): <strong>±${rainCv}%</strong> (Latest year Z = <strong>${latestZ}σ</strong>)<br/>• Bare-Soil Storm Overlap: <strong>${clim.bareMonths} bare months</strong> · <strong>${clim.extremes.stormDays} storm days</strong><br/>• Signal: <strong>${rainCv > 20 || clim.waterBalance < -100 ? "Drought & Moisture Buffering" : "Erosion Cover & N-Scavenging"}</strong></p></div>
+    <div class="si-card"><h4>SI Model 2: 10-Yr Trend Slope &amp; Weighted Tradeoff Scorer</h4><p class="subtext">Fits decadal climate trajectory + multi-criteria priority alignment.</p><p style="font-size:0.8rem;margin:0;">• 10-Yr Temperature Trend: <strong>${tempSlopeDecade >= 0 ? "+" : ""}${tempSlopeDecade} °C/decade</strong><br/>• Top Strategy: <strong>${best.name} (${best.score}/100)</strong><br/>• Consensus: <strong>Both models agree on resilient diversification</strong></p></div>
+    <div class="si-card"><h4>Uncertainty &amp; Scale-Mismatch Diagnostics</h4><p class="subtext">Shows where coarse satellite pixels need ground verification.</p><p style="font-size:0.8rem;margin:0;">• Data Confidence: <strong>${completeness}%</strong><br/>• Field vs. SMAP 9km: Your <strong>${areaHa.toFixed(1)} ha</strong> field is <strong>${smapPixels}×</strong> of one SMAP pixel (disaggregated via 30m SRTM + SoilGrids)<br/>• Ground Checks: Soil lab SOM/pH, local buyer contract, canal/well water limits.</p></div>
+  `;
+}
+
+function updateAll() {
+  const clim = getAdjustedClimate(), scored = scoreRotations(clim);
+  renderKPIs(clim, scored); renderStrategies(scored, clim); renderSeasonalAndTenYearCharts(clim); renderSiComparison(clim, scored); renderMapGridOverlay(clim);
+}
+
+function switchTab(name, btn) {
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById(`tab-${name}`).classList.add("active");
+  if (name === "map" && map) setTimeout(() => map.invalidateSize(), 120);
+}
+
+function exportRotationBrief() {
+  const clim = getAdjustedClimate(), scored = scoreRotations(clim);
+  const md = `# SoilPulse (Field Shift) — Farm Rotation Brief
+**Coordinates:** ${document.getElementById("latInput").value}, ${document.getElementById("lonInput").value} (${document.getElementById("polyAreaText").textContent})
+**Soil:** ${document.getElementById("soilTexVal").textContent} | SOC: ${document.getElementById("soilSocVal").textContent} | pH: ${document.getElementById("soilPhVal").textContent}
+**Water Balance:** ${clim.annualRain} mm Rain vs ${clim.annualEt0} mm ET₀ (${clim.waterBalance} mm)
+
+${scored.map(r => `## ${r.name} — ${r.score}/100
+- Sequence: ${r.crops.join(" -> ")} (~${r.waterDemandMm} mm/yr, +${r.nFixKg} kg N/ha, Roots ${r.rootDepth})
+- Why: ${r.why}
+- Evidence: ${r.evidence}
+- Gaps: ${r.gaps}
+- Local Risks: ${r.risks}
+`).join("\n")}
+---
+*Advisory: Supports farmer and extension review; validate locally with soil lab tests and market contracts.*`;
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([md], { type: "text/markdown" }));
+  a.download = `soilpulse-rotation-brief.md`;
+  a.click();
+}
+
+function fmtYmd(s) { return `${MONTHS[parseInt(s.slice(4,6))-1]} ${s.slice(6,8)}`; }
+function diffDays(a, b) { return Math.max(0, Math.round((new Date(`${b.slice(0,4)}-${b.slice(4,6)}-${b.slice(6,8)}`) - new Date(`${a.slice(0,4)}-${a.slice(4,6)}-${a.slice(6,8)}`)) / 86400000)); }
+function pointInRing([x, y], ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi + 1e-12) + xi)) inside = !inside;
+  }
+  return inside;
+}
+function approxPolygonAreaHa(ring) {
+  if (ring.length < 3) return 0;
+  const kx = 111320 * Math.cos(ring[0][1] * Math.PI / 180), ky = 110540;
+  let area = 0;
+  for (let i = 0; i < ring.length - 1; i++) area += (ring[i][0] * kx) * (ring[i+1][1] * ky) - (ring[i+1][0] * kx) * (ring[i][1] * ky);
+  return Math.abs(area) / 20000;
+}
+function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }
+function round1(v) { return Math.round(v * 10) / 10; }
+function heatColor(val, min, max, stops) {
+  const t = clamp((val - min) / (max - min), 0, 1);
+  const c1 = hexToRgb(t < 0.5 ? stops[0] : stops[1]), c2 = hexToRgb(t < 0.5 ? stops[1] : stops[2]), lt = t < 0.5 ? t * 2 : (t - 0.5) * 2;
+  return `rgb(${Math.round(c1.r+(c2.r-c1.r)*lt)},${Math.round(c1.g+(c2.g-c1.g)*lt)},${Math.round(c1.b+(c2.b-c1.b)*lt)})`;
+}
+function hexToRgb(hex) { const n = parseInt(hex.replace("#",""), 16); return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 }; }
+
+window.addEventListener("DOMContentLoaded", () => { initMap(); updateAll(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+Datasets & APIs Used
+Layer	Dataset / Source	Resolution / Coverage	How Field Shift Uses It
+Agroclimatology & Extremes	NASA POWER AG API	~0.5°, Global (2015–2024 monthly + daily)	10-yr temperature/rain trends, ET₀ water balance, storm days, heatwaves, frost dates
+Soil Moisture & Water Storage	NASA SMAP & GRACE-FO (AppEEARS + GIBS)	9 km / 300 km	Root-zone moisture trends, regional aquifer depletion penalties
+Precipitation & Canopy Heat	GPM IMERG & ECOSTRESS (GIBS + AppEEARS)	0.1° / 70 m	Seasonal rainfall overlays, mid-day evaporative heat hotspots
+Vegetation & Bare Soil	MODIS / Landsat NDVI (GIBS + AppEEARS)	30 m – 250 m	Identifies bare-field erosion windows & seasonal crop vigor
+Elevation & Slope	SRTM / Copernicus DEM (Open-Meteo Elevation)	30 m – 90 m, Global	Sub-field slope %, runoff erosion hotspots, cold-air frost pockets
+Global & US Ground Soil	ISRIC SoilGrids v2.0 & USDA-NRCS SSURGO	250 m global / map-unit US	Auto-classifies soil texture, organic carbon, pH, drainage class
+US Crop History	USDA CropScape (CDL)	30 m, US	Detects actual multi-year historical crops on US fields
+Basemap Tiles	Esri World Imagery & CARTO Voyager	Global	High-resolution farm boundary tracing + road/village orientation
+Conversational AI	Google Gemini 2.5 Flash	Multilingual	Translates field telemetry into plain spoken Urdu advice

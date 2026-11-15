@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="ur">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SoilPulse — کسان فیلڈ شفٹ (Field-Level Multi-Language Farmer App)</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+  <style>
+    :root {
+      --bg: #f6f3ea; --card: #ffffff; --ink: #17271d; --muted: #526256;
+      --green: #1f6b43; --green-soft: #e3f2e9; --amber: #c27d12; --amber-soft: #fdf2dc;
+      --red: #be422c; --red-soft: #fbe8e4; --blue: #196485; --border: #d8d1bf; --radius: 16px;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: "Noto Nastaliq Urdu", "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.65; }
+    header { background: linear-gradient(135deg, #15422a, #1d5a3b); color: #fff; padding: 0.95rem 1.25rem; border-bottom: 4px solid #e0a63b; }
+    .hdr { max-width: 1140px; margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.75rem; }
+    .brand-wrap { display: flex; align-items: center; gap: 0.75rem; }
+    .brand-wrap img { height: 52px; width: auto; border-radius: 10px; background: #fff; padding: 2px; }
+    .hdr h1 { margin: 0; font-size: 1.32rem; }
+    .hdr p { margin: 0.15rem 0 0; font-size: 0.85rem; color: #d5e8dc; }
+    .hdr-actions { display: flex; gap: 0.45rem; flex-wrap: wrap; align-items: center; }
+
+    .lang-bar { background: #efebe0; border-bottom: 1px solid var(--border); padding: 0.55rem 1.25rem; }
+    .lang-inner { max-width: 1140px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; justify-content: space-between; }
+    .lang-pills { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .lang-btn { padding: 0.36rem 0.8rem; border-radius: 999px; border: 2px solid var(--border); background: #fff; font-weight: 700; font-size: 0.84rem; cursor: pointer; }
+    .lang-btn.active { background: var(--green); color: #fff; border-color: var(--green); }
+
+    .container { max-width: 1140px; margin: 0 auto; padding: 1rem 1rem 3rem; }
+    .big-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; padding: 0.75rem 1.1rem; border-radius: 14px; border: none; font-size: 0.94rem; font-weight: 700; cursor: pointer; }
+    .btn-green { background: var(--green); color: #fff; }
+    .btn-blue { background: var(--blue); color: #fff; }
+    .btn-amber { background: var(--amber); color: #fff; }
+    .btn-red { background: var(--red); color: #fff; }
+    .btn-light { background: #fff; color: var(--ink); border: 2px solid var(--border); }
+    .btn-voice { background: #144d31; color: #fff; border: 2px solid #7dd3a3; border-radius: 999px; padding: 0.42rem 0.9rem; font-size: 0.85rem; cursor: pointer; font-weight: 700; }
+
+    .card { background: var(--card); border: 2px solid var(--border); border-radius: var(--radius); padding: 1.05rem; margin-bottom: 1rem; box-shadow: 0 3px 12px rgba(0,0,0,0.05); }
+    .card-title { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; border-bottom: 2px solid #f0ece0; padding-bottom: 0.45rem; }
+    .card-title h2 { margin: 0; font-size: 1.12rem; }
+    .step-badge { background: var(--green-soft); color: var(--green); font-weight: 800; padding: 0.18rem 0.6rem; border-radius: 999px; font-size: 0.8rem; }
+
+    .search-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .search-row input { flex: 1; min-width: 210px; padding: 0.65rem 0.85rem; border-radius: 12px; border: 2px solid var(--border); font-size: 0.94rem; }
+
+    .icon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.65rem; }
+    .pick-card { background: #faf8f2; border: 2px solid var(--border); border-radius: 14px; padding: 0.75rem 0.55rem; text-align: center; cursor: pointer; }
+    .pick-card.active { background: var(--green-soft); border-color: var(--green); box-shadow: 0 0 0 2px rgba(31,107,67,0.2); }
+    .pick-card .ico { font-size: 1.8rem; display: block; margin-bottom: 0.15rem; }
+    .pick-card strong { display: block; font-size: 0.92rem; }
+    .pick-card small { color: var(--muted); font-size: 0.75rem; }
+
+    #pkMap { width: 100%; height: 350px; border-radius: 14px; border: 2px solid var(--border); margin-top: 0.75rem; }
+
+    .field-pill-bar {
+      background: #f0ece1; border: 1px solid var(--border); border-radius: 12px;
+      padding: 0.65rem 0.85rem; margin-top: 0.65rem; font-size: 0.88rem;
+      display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: space-between; align-items: center;
+    }
+
+    .signal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 0.75rem; }
+    .signal-box { border-radius: 14px; padding: 0.9rem; text-align: center; border: 2px solid transparent; }
+    .sig-good { background: var(--green-soft); border-color: #97d3b0; }
+    .sig-warn { background: var(--amber-soft); border-color: #ecc67b; }
+    .sig-bad { background: var(--red-soft); border-color: #eab0a5; }
+    .signal-box .big-ico { font-size: 2.1rem; }
+    .signal-box .sig-head { font-size: 1rem; font-weight: 800; margin: 0.18rem 0; }
+    .signal-box .sig-sub { font-size: 0.84rem; }
+
+    .rot-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 0.85rem; }
+    .rot-card { border: 2px solid var(--border); border-radius: 14px; padding: 0.95rem; background: #fff; display: flex; flex-direction: column; gap: 0.5rem; }
+    .rot-card.best { border: 3px solid var(--green); background: #f7fcf9; }
+    .crop-chain { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; background: #f2efe5; padding: 0.5rem; border-radius: 10px; font-weight: 700; font-size: 0.86rem; }
+
+    .ai-box { background: linear-gradient(180deg, #f3faf6 0%, #ffffff 100%); border: 2px solid #8ec8a6; border-radius: var(--radius); padding: 1.05rem; }
+    .ai-controls { display: flex; flex-wrap: wrap; gap: 0.55rem; margin: 0.65rem 0; align-items: center; }
+    .ai-controls input[type="text"] { flex: 1; min-width: 210px; padding: 0.72rem 0.85rem; border-radius: 12px; border: 2px solid var(--border); font-size: 0.94rem; }
+    .ai-reply { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 0.9rem; font-size: 0.98rem; min-height: 70px; white-space: pre-wrap; }
+    .rtl { direction: rtl; text-align: right; }
+    .ltr { direction: ltr; text-align: left; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="hdr">
+    <div class="brand-wrap">
+      <img src="logo.jpeg" alt="SoilPulse Logo" onerror="this.style.display='none'" />
+      <div>
+        <h1 id="hdrTitle">🌾 SoilPulse — کسان فیلڈ شفٹ</h1>
+        <p id="hdrSub">اپنی اصل زمین منتخب کریں اور آواز میں مشورہ سنیں (NASA سیٹلائٹ + Gemini AI)</p>
+      </div>
+    </div>
+    <div class="hdr-actions">
+      <button class="btn-voice" onclick="speakSummary()" id="listenAllBtn">🔊 خلاصہ سنیں</button>
+      <a href="index.html" class="big-btn btn-light" style="padding:0.42rem 0.85rem;font-size:0.84rem;text-decoration:none;">🔬 Expert View</a>
+    </div>
+  </div>
+</header>
+
+<div class="lang-bar">
+  <div class="lang-inner">
+    <strong style="font-size:0.86rem;">🗣️ زبان منتخب کریں / Language:</strong>
+    <div class="lang-pills">
+      <button class="lang-btn active" onclick="setLanguage('ur', this)">اردو (Urdu)</button>
+      <button class="lang-btn" onclick="setLanguage('pa', this)">پنجابی (Punjabi)</button>
+      <button class="lang-btn" onclick="setLanguage('sd', this)">سنڌي (Sindhi)</button>
+      <button class="lang-btn" onclick="setLanguage('ps', this)">پښتو (Pashto)</button>
+      <button class="lang-btn" onclick="setLanguage('en', this)">Simple English</button>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <!-- STEP 1: SELECT ACTUAL FARM FIELD -->
+  <div class="card">
+    <div class="card-title">
+      <h2><span class="step-badge">1</span> <span id="step1Title">اپنا گاؤں تلاش کریں یا نقشے پر اپنا کھیت بنائیں</span></h2>
+      <div style="display:flex;gap:0.45rem;flex-wrap:wrap;">
+        <button class="big-btn btn-amber" style="padding:0.48rem 0.85rem;font-size:0.84rem;" onclick="loadSnicFieldsInFarmer()">🌾 پنجاب کے 4,678 کھیت لوڈ کریں</button>
+        <button class="big-btn btn-blue" style="padding:0.48rem 0.85rem;font-size:0.84rem;" onclick="useMyGps()" id="gpsBtn">📍 کھیت میں کھڑے ہیں؟ (GPS)</button>
+      </div>
+    </div>
+
+    <div class="search-row">
+      <input type="text" id="villageSearchInput" placeholder="گاؤں / تحصیل / شہر لکھیں (مثلاً: Depalpur, Okara, Multan, Sahiwal, Mardan)" />
+      <button class="big-btn btn-green" style="padding:0.6rem 1rem;font-size:0.9rem;" onclick="searchVillage()">🔍 تلاش کریں (Search)</button>
+    </div>
+
+    <div class="icon-grid" id="pkRegionGrid">
+      <div class="pick-card active" onclick="selectPkRegion('depalpur', this)"><span class="ico">🌾🛰️</span><strong>دیپالپور / اوکاڑہ</strong><small>SNIC 4,678 Fields Zone</small></div>
+      <div class="pick-card" onclick="selectPkRegion('multan', this)"><span class="ico">☀️☁️</span><strong>ملتان / جنوبی پنجاب</strong><small>Cotton–Wheat Heat</small></div>
+      <div class="pick-card" onclick="selectPkRegion('gujranwala', this)"><span class="ico">🌾💧</span><strong>گوجرانوالہ / وسطی پنجاب</strong><small>Rice–Wheat Belt</small></div>
+      <div class="pick-card" onclick="selectPkRegion('nawabshah', this)"><span class="ico">🔥🌾</span><strong>نوابشاہ / سندھ</strong><small>Heat &amp; Salinity</small></div>
+      <div class="pick-card" onclick="selectPkRegion('dikhan', this)"><span class="ico">⛰️🌧️</span><strong>ڈی آئی خان / بارانی</strong><small>Rainfed / Barani</small></div>
+    </div>
+
+    <div id="pkMap"></div>
+
+    <div class="field-pill-bar">
+      <div><strong>📐 منتخب کھیت (Selected Field):</strong> <span id="fieldInfoText">40.0 ایکڑ (320 کنال) · (30.9330, 73.6830)</span></div>
+      <div id="locStatus" style="color:var(--muted);">نقشے کے بائیں جانب ⬟ بٹن سے اپنا کھیت کھینچیں یا کسی کھیت پر ٹیپ کریں۔</div>
+    </div>
+  </div>
+
+  <!-- STEP 2: CURRENT CROP & WATER SOURCE -->
+  <div class="card">
+    <div class="card-title"><h2><span class="step-badge">2</span> <span id="step2Title">فصل اور پانی کا ذریعہ منتخب کریں (Rabi/Kharif &amp; Water)</span></h2></div>
+
+    <div class="icon-grid" id="cropPickGrid" style="margin-bottom:0.75rem;">
+      <div class="pick-card active" onclick="selectCurrentCrop('cotton_wheat', this)"><span class="ico">☁️🌾</span><strong>کپاس + گندم</strong><small>Kharif Cotton + Rabi Wheat</small></div>
+      <div class="pick-card" onclick="selectCurrentCrop('rice_wheat', this)"><span class="ico">🌾💧</span><strong>چاول + گندم</strong><small>Kharif Rice + Rabi Wheat</small></div>
+      <div class="pick-card" onclick="selectCurrentCrop('barani_wheat', this)"><span class="ico">🌽🌱</span><strong>بارانی گندم / مکئی</strong><small>Rainfed Wheat / Maize</small></div>
+    </div>
+
+    <div class="icon-grid" id="waterPickGrid">
+      <div class="pick-card active" onclick="selectWaterSource('canal', this)"><span class="ico">💧</span><strong>نہری / میٹھا پانی</strong><small>Canal / Sweet Water</small></div>
+      <div class="pick-card" onclick="selectWaterSource('tubewell', this)"><span class="ico">⚙️</span><strong>ٹیوب ویل / کھارا پانی</strong><small>Tubewell / Brackish Risk</small></div>
+      <div class="pick-card" onclick="selectWaterSource('rainfed', this)"><span class="ico">🌧️</span><strong>صرف بارش (بارانی)</strong><small>Rainfed Only</small></div>
+    </div>
+
+    <div style="margin-top:0.85rem;">
+      <button class="big-btn btn-green" style="width:100%;" onclick="checkMyFarmWithNasa()" id="checkBtn">🛰️ اس کھیت کا موسم، زمین اور پانی چیک کریں (Check This Field)</button>
+    </div>
+  </div>
+
+  <!-- STEP 3: TRAFFIC LIGHTS -->
+  <div class="card">
+    <div class="card-title"><h2><span class="step-badge">3</span> <span id="step3Title">آپ کے کھیت کی موجودہ حالت</span></h2><button class="btn-voice" onclick="speakSignals()">🔊 سنیں</button></div>
+    <div class="signal-grid" id="signalGrid"></div>
+  </div>
+
+  <!-- STEP 4: ROTATIONS -->
+  <div class="card">
+    <div class="card-title"><h2><span class="step-badge">4</span> <span id="step4Title">بہتر فصلوں کا ہیر پھیر (Rabi + Kharif Plan)</span></h2><button class="btn-voice" onclick="speakBestRotation()">🔊 بہترین مشورہ سنیں</button></div>
+    <div class="rot-grid" id="pkRotationGrid"></div>
+  </div>
+
+  <!-- STEP 5: GEMINI MULTIMODAL VOICE + TEXT AI -->
+  <div class="ai-box">
+    <div class="card-title" style="border-bottom-color:#cbe6d6;"><h2 id="step5Title">🤖 کسان دوست AI مشیر (SoilPulse Gemini AI)</h2><button class="btn-voice" onclick="speakAiReply()">🔊 جواب سنیں</button></div>
+    <p id="aiHint" style="margin:0;font-size:0.86rem;color:var(--muted);">
+      مائیک بٹن دبا کر اپنی زبان (اردو / پنجابی / سندھی / پشتو) میں بولیں، دوبارہ دبا کر بھیجیں — یا نیچے تیار سوال دبائیں:
+    </p>
+    <div class="ai-controls">
+      <button class="big-btn btn-amber" onclick="toggleAudioRecording()" id="micBtn">🎤 بول کر پوچھیں (Record Voice)</button>
+      <input type="text" id="farmerQuestion" placeholder="یہاں سوال لکھیں یا اوپر مائیک سے بولیں..." />
+      <button class="big-btn btn-green" onclick="askGeminiAdvisor()" id="askBtn">✨ مشورہ لیں</button>
+    </div>
+    <div class="ai-controls" id="quickChipsRow" style="margin-top:0.25rem;"></div>
+    <div id="aiReplyBox" class="ai-reply rtl">ابھی کوئی سوال نہیں پوچھا گیا۔ اوپر دیے گئے بٹن دبائیں یا بول کر پوچھیں۔</div>
+    <audio id="ttsAudio" style="display:none;"></audio>
+    <input type="hidden" id="pkBackendUrl" value="http://127.0.0.1:8000" />
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+<script>
+const I18N = {
+  ur: {
+    dir:"rtl", langName:"Urdu (اردو)", hdrTitle:"🌾 SoilPulse — کسان فیلڈ شفٹ", hdrSub:"اپنی اصل زمین منتخب کریں اور آواز میں مشورہ سنیں (NASA سیٹلائٹ + Gemini AI)",
+    listenAll:"🔊 خلاصہ سنیں", step1:"اپنا گاؤں تلاش کریں یا نقشے پر اپنا کھیت بنائیں", gps:"📍 کھیت میں کھڑے ہیں؟ (GPS)", step2:"فصل اور پانی کا ذریعہ منتخب کریں",
+    checkBtn:"🛰️ اس کھیت کا موسم، زمین اور پانی چیک کریں", step3:"آپ کے کھیت کی موجودہ حالت", step4:"بہتر فصلوں کا ہیر پھیر (ربیع + خریف پلان)",
+    step5:"🤖 کسان دوست AI مشیر (SoilPulse Gemini AI)", micStart:"🎤 بول کر پوچھیں (Record)", micStop:"⏹️ روکیں اور بھیجیں (Stop & Send)", ask:"✨ مشورہ لیں",
+    chips:["پانی کم ہے، کون سی فصل بہتر ہے؟","کھاد کا خرچہ کم کرنے کے لیے کیا لگائیں؟","شدید گرمی سے فصل کیسے بچائیں؟","اس کھیت کے لیے بہترین فصل کون سی ہے؟"],
+    waterLabel:"پانی کی کمی / بارش", heatLabel:"زیادہ سے زیادہ گرمی", soilLabel:"کھیت کی مٹی",
+    waterLow:"پانی کی کمی ہے — کم پانی والی فصل لگائیں", waterOk:"بارش اور نمی بہتر ہے",
+    heatHigh:"شدید گرمی — گرمی برداشت کرنے والی فصل چنیں", heatOk:"معتدل گرمی — وقت پر بوائی کریں"
+  },
+  pa: {
+    dir:"rtl", langName:"Punjabi (Shahmukhi پنجابی)", hdrTitle:"🌾 SoilPulse — کسان بھرا ایپ", hdrSub:"اپنی اصل زمین چُنو تے آواز وچ صلاح سنو (NASA + Gemini AI)",
+    listenAll:"🔊 ساری گل سنو", step1:"اپنا پنڈ لبھو یا نقشے تے کھیت بناؤ", gps:"📍 کھیت وچ کھڑے او؟ (GPS)", step2:"فصل تے پانی دا ذریعہ چُنو",
+    checkBtn:"🛰️ اس کھیت دا موسم تے مٹی ویکھو", step3:"تہاڈے کھیت دا حال", step4:"ودھیا فصلاں دا ہیر پھیر (ربیع + خریف)",
+    step5:"🤖 کسان دوست AI صلاح کار", micStart:"🎤 بول کے پچھو (Record)", micStop:"⏹️ روکو تے بھیجو (Stop)", ask:"✨ صلاح لوو",
+    chips:["پانی گھٹ اے، کیہڑی فصل لائیے؟","کھاد دا خرچہ گھٹ کرن لئی کیہہ بیجیے؟","سخت گرمی توں فصل کیویں بچائیے؟","اس کھیت لئی سب توں ودھیا فصل کیہڑی اے؟"],
+    waterLabel:"پانی تے مینہہ", heatLabel:"ودھ توں ودھ گرمی", soilLabel:"کھیت دی مٹی",
+    waterLow:"پانی گھٹ اے — گھٹ پانی والی فصل لاؤ", waterOk:"بارش تے نمی چنگی اے",
+    heatHigh:"تکھی گرمی — گرمی جھلن والی فصل چُنو", heatOk:"مناسب گرمی — ویلے سر بجائی کرو"
+  },
+  sd: {
+    dir:"rtl", langName:"Sindhi (سنڌي)", hdrTitle:"🌾 SoilPulse — هاري دوست ايپ", hdrSub:"پنهنجي اصل زمين چونڊيو ۽ آواز ۾ صلاح ٻڌو",
+    listenAll:"🔊 خلاصو ٻڌو", step1:"پنهنجو ڳوٺ ڳوليو يا نقشي تي زمين ٺاهيو", gps:"📍 زمين تي بيٺا آهيو؟ (GPS)", step2:"فصل ۽ پاڻي جو ذريعو چونڊيو",
+    checkBtn:"🛰️ هن زمين جي موسم ۽ مٽي چيڪ ڪريو", step3:"توهان جي زمين جي حالت", step4:"بهتر فصلن جي ڦيرڦار (ربيع + خريف)",
+    step5:"🤖 هاري دوست AI مشير", micStart:"🎤 ڳالهائي پڇو (Record)", micStop:"⏹️ روڪيو ۽ موڪليو", ask:"✨ صلاح وٺو",
+    chips:["پاڻي گهٽ آهي، ڪهڙو فصل بهتر آهي؟","ڀاڻ جو خرچ گهٽ ڪرڻ لاءِ ڇا پوکجي؟","سخت گرمي کان فصل ڪيئن بچائجي؟","هن زمين لاءِ بهترين فصل ڪهڙو آهي؟"],
+    waterLabel:"پاڻي ۽ برسات", heatLabel:"وڌ ۾ وڌ گرمي", soilLabel:"زمين جي مٽي",
+    waterLow:"پاڻي گهٽ آهي — گهٽ پاڻي وارو فصل پوکيو", waterOk:"برسات ۽ گهم بهتر آهي",
+    heatHigh:"تيز گرمي — گرمي برداشت ڪندڙ فصل چونڊيو", heatOk:"مناسب گرمي — وقت تي پوک ڪريو"
+  },
+  ps: {
+    dir:"rtl", langName:"Pashto (پښتو)", hdrTitle:"🌾 SoilPulse — د بزګر مرستندویه", hdrSub:"خپله اصلي ځمکه وټاکئ او په غږ کې مشوره واورئ",
+    listenAll:"🔊 لنډیز واورئ", step1:"خپل کلی ولټوئ یا پر نقشه خپله ځمکه رسم کړئ", gps:"📍 په پټي کې ولاړ یاست؟ (GPS)", step2:"فصل او د اوبو سرچینه وټاکئ",
+    checkBtn:"🛰️ د دې پټي هوا او خاوره وګورئ", step3:"ستاسو د پټي اوسنی حالت", step4:"د فصلونو غوره بدلون",
+    step5:"🤖 د بزګر ملګری AI سلاکار", micStart:"🎤 په غږ وپوښتئ (Record)", micStop:"⏹️ ودروئ او واستوئ", ask:"✨ مشوره واخلئ",
+    chips:["اوبه کمې دي، کوم فصل ښه دی؟","د سرې لګښت کمولو لپاره څه وکرئ؟","له سختې ګرمۍ څخه فصل څنګه وساتو؟","د دې ځمکې لپاره غوره فصل کوم دی؟"],
+    waterLabel:"اوبه او باران", heatLabel:"تر ټولو زیاته تودوخه", soilLabel:"د پټي خاوره",
+    waterLow:"اوبه کمې دي — لږ اوبه غوښتونکی فصل وکرئ", waterOk:"باران او لمدبل ښه دی",
+    heatHigh:"سخته ګرمي — د ګرمۍ زغمونکی فصل وټاکئ", heatOk:"معتدله هوا — پر وخت کرنه وکړئ"
+  },
+  en: {
+    dir:"ltr", langName:"Simple English", hdrTitle:"🌾 SoilPulse — Farmer Helper", hdrSub:"Select your actual farm field on the map and hear advice in your language",
+    listenAll:"🔊 Listen Summary", step1:"Search Your Village or Draw Your Exact Field", gps:"📍 Standing on Farm? (GPS)", step2:"Select Crop System & Water Source",
+    checkBtn:"🛰️ Check This Field's Weather & Soil", step3:"Selected Field Health Signals", step4:"Better Crop Rotations (Rabi + Kharif)",
+    step5:"🤖 Ask Farmer AI Advisor (Voice or Text)", micStart:"🎤 Record Voice", micStop:"⏹️ Stop & Send", ask:"✨ Ask AI",
+    chips:["Water is low, which crop is best?","How can I cut urea fertilizer costs?","How do I protect crops from extreme heat?","Which rotation fits this field best?"],
+    waterLabel:"Water & Rain", heatLabel:"Peak Summer Heat", soilLabel:"Field Soil",
+    waterLow:"Water deficit — pick water-saving crops", waterOk:"Better moisture balance",
+    heatHigh:"Extreme heat — pick heat-hardy crops", heatOk:"Moderate heat — plant on schedule"
+  }
+};
+
+const PK_REGIONS = {
+  depalpur:   { lat: 30.9330, lon: 73.6830, rainMm: 395, etMm: 1480, peakHeat: 41, wetness: 0.30, soilText: "Silt Loam (میرا زمین)", pH: 7.8 },
+  multan:     { lat: 30.1575, lon: 71.5249, rainMm: 185, etMm: 1620, peakHeat: 43, wetness: 0.24, soilText: "Sandy Loam (ہلکی میرا)", pH: 7.9 },
+  gujranwala: { lat: 32.1877, lon: 74.1945, rainMm: 690, etMm: 1380, peakHeat: 39, wetness: 0.48, soilText: "Clay Loam (چکنی میرا)", pH: 7.6 },
+  nawabshah:  { lat: 26.2442, lon: 68.4100, rainMm: 135, etMm: 1790, peakHeat: 45, wetness: 0.20, soilText: "Loam / Saline Risk", pH: 8.1 },
+  dikhan:     { lat: 31.8626, lon: 70.9019, rainMm: 310, etMm: 1510, peakHeat: 41, wetness: 0.28, soilText: "Sandy/Silt Loam", pH: 7.7 }
+};
+
+const PK_ROTATIONS = {
+  cotton_wheat: [
+    { best:false, titleUr:"پرانا طریقہ: صرف کپاس + گندم", titleEn:"Current: Cotton–Wheat Only", crops:["☁️ خریف: کپاس","🌾 ربیع: گندم","🟫 مئی-جون خالی"], benefitUr:"مئی جون میں زمین خالی رہتی ہے، طاقت کم ہو رہی ہے اور کھاد کا خرچہ بڑھتا ہے۔", benefitEn:"May–June bare soil loses moisture & nitrogen; fertilizer bill rises.", waterTag:"🔴 High Water", soilTag:"🔴 Bare May–Jun" },
+    { best:true,  titleUr:"بہترین مشورہ: گندم + 65 روزہ مونگ + کپاس", titleEn:"Best: Wheat–65d Mungbean–Cotton", crops:["🌾 ربیع: گندم","🫘 بہار/مئی-جون: مونگ","☁️ خریف: کپاس"], benefitUr:"مونگ مئی جون کے خالی وقت میں لگ کر مفت نائٹروجن دیتی ہے اور یوریا کھاد بچاتی ہے۔", benefitEn:"Mungbean fills May–June bare gap, fixes free nitrogen, and cuts urea cost.", waterTag:"🟢 Saves Water", soilTag:"🟢 +Free Nitrogen" },
+    { best:false, titleUr:"چارہ پلان: کپاس + برسیم / جوار + گندم", titleEn:"Forage: Cotton–Berseem/Sorghum–Wheat", crops:["☁️ کپاس","🐄 برسیم / جوار","🌾 گندم"], benefitUr:"مویشیوں کے لیے سبز چارہ اور کلر/سخت زمین کو نرم کرنے کے لیے بہترین۔", benefitEn:"Great for livestock fodder and loosening hard or saline soil.", waterTag:"🟡 Medium Water", soilTag:"🟢 High Fodder" }
+  ],
+  rice_wheat: [
+    { best:false, titleUr:"پرانا طریقہ: کدو والا چاول + گندم", titleEn:"Current: Puddled Rice–Wheat", crops:["🌾 خریف: چاول","🔥 پرالی","🌾 ربیع: گندم"], benefitUr:"زیرِ زمین پانی تیزی سے نیچے جا رہا ہے اور زمین کے نیچے سخت تہہ بن رہی ہے۔", benefitEn:"Heavy pumping drops water tables and compacts subsoil hardpan.", waterTag:"🔴 Very High Water", soilTag:"🔴 Hardpan Risk" },
+    { best:true,  titleUr:"بہترین مشورہ: خشک کاشت چاول (DSR) + مونگ / برسیم + گندم", titleEn:"Best: DSR Rice–Mung/Berseem–Wheat", crops:["🌱 DSR چاول","🫘 مونگ / برسیم","🌾 گندم"], benefitUr:"25–30% پانی کی بچت، زمین نرم رہتی ہے اور کھاد کم لگتی ہے۔", benefitEn:"Saves 25–30% water, breaks hardpan, and adds natural nitrogen.", waterTag:"🟢 Saves 30% Water", soilTag:"🟢 Soil Builder" },
+    { best:false, titleUr:"پانی بچاؤ: مکئی / جوار + مسور / چنا + گندم", titleEn:"Water-Saver: Maize/Sorghum–Pulse–Wheat", crops:["🌽 مکئی / جوار","🫘 مسور / چنا","🌾 گندم"], benefitUr:"کم پانی یا کھارے ٹیوب ویل والے علاقوں میں زیادہ نفع۔", benefitEn:"Ideal where water is scarce or tubewell water is brackish.", waterTag:"🟢 Low Water", soilTag:"🟢 Disease Break" }
+  ],
+  barani_wheat: [
+    { best:false, titleUr:"پرانا طریقہ: بارانی گندم + خالی زمین", titleEn:"Current: Rainfed Wheat–Bare Fallow", crops:["🌾 ربیع: گندم","💨 خریف: خالی زمین"], benefitUr:"بارش میں مٹی بہہ جاتی ہے اور دھوپ سے نمی خشک ہوتی ہے۔", benefitEn:"Monsoon rain washes bare soil away and sun dries moisture.", waterTag:"🟡 Moisture Loss", soilTag:"🔴 Erosion Risk" },
+    { best:true,  titleUr:"بہترین مشورہ: گندم + کالا چنا + باجرہ / گوارا", titleEn:"Best: Wheat–Chickpea–Millet/Guar", crops:["🌾 گندم","🫘 کالا چنا","🌾 باجرہ / گوارا"], benefitUr:"کم بارش میں کامیاب، گہری جڑیں نمی بچاتی اور کٹاؤ روکتی ہیں۔", benefitEn:"Thrives on low rain; deep roots hold moisture and stop erosion.", waterTag:"🟢 Drought Hardy", soilTag:"🟢 Erosion Shield" },
+    { best:false, titleUr:"تیل و چارہ: سرسوں + جوار + گندم", titleEn:"Oilseed: Mustard–Sorghum–Wheat", crops:["🌼 سرسوں","🌾 جوار","🌾 گندم"], benefitUr:"سرسوں کی جڑیں کیڑے مارتی ہیں اور اضافی نقد آمدنی دیتی ہے۔", benefitEn:"Mustard suppresses soil pests and adds oilseed cash income.", waterTag:"🟢 Heat Hardy", soilTag:"🟢 Cash + Fodder" }
+  ]
+};
+
+let pkState = {
+  lang: "ur", regionKey: "depalpur", cropKey: "cotton_wheat", waterKey: "canal",
+  lat: 30.9330, lon: 73.6830, areaAcres: 40.0,
+  liveWeather: null, liveSoil: null, lastAiReply: "",
+  mediaRecorder: null, audioChunks: [], isRecording: false
+};
+let pkMap, drawnItems, snicLayerGroup, canvasRenderer;
+
+function initPkMap() {
+  const r = PK_REGIONS[pkState.regionKey];
+  pkMap = L.map("pkMap").setView([r.lat, r.lon], 13);
+  canvasRenderer = L.canvas({ padding: 0.5 });
+
+  L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", { attribution:"Esri" }).addTo(pkMap);
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png?key=cb1_59an_1_04b8aea8ef6fd3a8a151cad8", { attribution:"CARTO", opacity:0.9 }).addTo(pkMap);
+
+  drawnItems = new L.FeatureGroup().addTo(pkMap);
+  snicLayerGroup = new L.FeatureGroup().addTo(pkMap);
+
+  const drawControl = new L.Control.Draw({
+    draw: { polyline:false, circle:false, circlemarker:false, marker:false, polygon:{ allowIntersection:false, showArea:true }, rectangle:true },
+    edit: { featureGroup: drawnItems }
+  });
+  pkMap.addControl(drawControl);
+
+  pkMap.on(L.Draw.Event.CREATED, e => {
+    drawnItems.clearLayers();
+    drawnItems.addLayer(e.layer);
+    updateDrawnField(e.layer.toGeoJSON());
+  });
+  pkMap.on(L.Draw.Event.EDITED, () => {
+    const ls = drawnItems.getLayers();
+    if (ls.length) updateDrawnField(ls[0].toGeoJSON());
+  });
+
+  drawDefaultField(r.lat, r.lon);
+}
+
+function drawDefaultField(lat, lon) {
+  drawnItems.clearLayers();
+  const dLat = 0.0018, dLon = 0.0022;
+  const poly = L.polygon([[lat-dLat,lon-dLon],[lat-dLat,lon+dLon],[lat+dLat,lon+dLon],[lat+dLat,lon-dLon]], { color:"#fde047", weight:3, fillOpacity:0.12 });
+  drawnItems.addLayer(poly);
+  updateDrawnField(poly.toGeoJSON(), false);
+}
+
+function updateDrawnField(geojson, autoFetch = true) {
+  const ring = geojson.geometry.coordinates[0];
+  let latS = 0, lonS = 0; const pts = ring.slice(0, -1);
+  pts.forEach(([lon, lat]) => { latS += lat; lonS += lon; });
+  pkState.lat = latS / pts.length;
+  pkState.lon = lonS / pts.length;
+  const areaHa = Math.max(0.2, approxAreaHa(ring));
+  pkState.areaAcres = areaHa * 2.471;
+  const kanal = pkState.areaAcres * 8;
+  document.getElementById("fieldInfoText").textContent = `${pkState.areaAcres.toFixed(1)} ایکڑ (${Math.round(kanal)} کنال) · (${pkState.lat.toFixed(4)}, ${pkState.lon.toFixed(4)})`;
+  if (autoFetch) checkMyFarmWithNasa();
+}
+
+async function searchVillage() {
+  const q = document.getElementById("villageSearchInput").value.trim();
+  if (!q) return;
+  document.getElementById("locStatus").textContent = `🔍 Searching "${q}"...`;
+  try {
+    const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q + ", Pakistan")}`);
+    const arr = await resp.json();
+    if (!arr.length) throw new Error("Place not found");
+    const lat = parseFloat(arr[0].lat), lon = parseFloat(arr[0].lon);
+    pkMap.setView([lat, lon], 14);
+    drawDefaultField(lat, lon);
+    document.getElementById("locStatus").textContent = `Found: ${arr[0].display_name.split(",").slice(0,2).join(", ")}. Now draw your field polygon on the map!`;
+  } catch (e) {
+    document.getElementById("locStatus").textContent = `Could not find "${q}". Try a nearby Tehsil/District name or tap directly on the map.`;
+  }
+}
+
+async function loadSnicFieldsInFarmer() {
+  const backendUrl = document.getElementById("pkBackendUrl").value.replace(/\/$/, "");
+  document.getElementById("locStatus").textContent = "Loading 4,678 Sentinel-2 fields (Okara/Depalpur)...";
+  try {
+    const resp = await fetch(`${backendUrl}/api/punjab/bare-fields`);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    snicLayerGroup.clearLayers();
+    pkMap.setView([30.933, 73.683], 13);
+
+    data.fields.forEach(f => {
+      const isBare = f.status === "Bare";
+      const m = L.circleMarker([f.lat, f.lon], {
+        renderer: canvasRenderer, radius: isBare ? 5.5 : 2.5,
+        color: isBare ? "#9a3412" : "#166534", fillColor: isBare ? "#f59e0b" : "#16a34a",
+        fillOpacity: isBare ? 0.92 : 0.45, weight: isBare ? 1.2 : 0.4
+      });
+      m.on("click", () => {
+        pkState.lat = f.lat; pkState.lon = f.lon; pkState.areaAcres = f.area_acres;
+        drawnItems.clearLayers();
+        L.circle([f.lat, f.lon], { radius: 70, color: "#fde047", weight: 3 }).addTo(drawnItems);
+        document.getElementById("fieldInfoText").textContent =
+          `کھیت #${f.id} · ${f.area_acres} ایکڑ · ${f.status === "Bare" ? "🔴 خالی زمین (Bare)" : "🟢 کاشت شدہ"} · خالی مہینے: ${f.bare_months}`;
+        checkMyFarmWithNasa();
+      });
+      snicLayerGroup.addLayer(m);
+    });
+    document.getElementById("locStatus").textContent = `✅ 4,678 کھیت نقشے پر آ گئے (نارنجی = ${data.bare_count} خالی کھیت)۔ اپنے کھیت پر ٹیپ کریں!`;
+  } catch (err) {
+    document.getElementById("locStatus").textContent = `Backend offline or CSV missing (${err.message}).`;
+  }
+}
+
+function setLanguage(lang, btn) {
+  pkState.lang = lang;
+  document.querySelectorAll(".lang-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  const t = I18N[lang];
+  document.getElementById("hdrTitle").textContent = t.hdrTitle;
+  document.getElementById("hdrSub").textContent = t.hdrSub;
+  document.getElementById("listenAllBtn").textContent = t.listenAll;
+  document.getElementById("step1Title").textContent = t.step1;
+  document.getElementById("gpsBtn").textContent = t.gps;
+  document.getElementById("step2Title").textContent = t.step2;
+  document.getElementById("checkBtn").textContent = t.checkBtn;
+  document.getElementById("step3Title").textContent = t.step3;
+  document.getElementById("step4Title").textContent = t.step4;
+  document.getElementById("step5Title").textContent = t.step5;
+  document.getElementById("micBtn").textContent = pkState.isRecording ? t.micStop : t.micStart;
+  document.getElementById("askBtn").textContent = t.ask;
+  document.getElementById("aiReplyBox").className = `ai-reply ${t.dir}`;
+  document.getElementById("quickChipsRow").innerHTML = t.chips.map(c =>
+    `<button class="big-btn btn-light" style="padding:0.42rem 0.72rem;font-size:0.8rem;" onclick='quickAsk(${JSON.stringify(c)})'>${c}</button>`
+  ).join("");
+  renderSignals(); renderPkRotations();
+}
+
+function selectPkRegion(key, el) {
+  pkState.regionKey = key; pkState.liveWeather = null; pkState.liveSoil = null;
+  document.querySelectorAll("#pkRegionGrid .pick-card").forEach(c => c.classList.remove("active"));
+  el.classList.add("active");
+  const r = PK_REGIONS[key];
+  pkMap.setView([r.lat, r.lon], 13);
+  drawDefaultField(r.lat, r.lon);
+  renderSignals(); renderPkRotations();
+}
+
+function selectCurrentCrop(key, el) {
+  pkState.cropKey = key;
+  document.querySelectorAll("#cropPickGrid .pick-card").forEach(c => c.classList.remove("active"));
+  el.classList.add("active");
+  renderPkRotations();
+}
+
+function selectWaterSource(key, el) {
+  pkState.waterKey = key;
+  document.querySelectorAll("#waterPickGrid .pick-card").forEach(c => c.classList.remove("active"));
+  el.classList.add("active");
+  renderSignals(); renderPkRotations();
+}
+
+function useMyGps() {
+  if (!navigator.geolocation) return alert("GPS unavailable. Search your village or tap the map.");
+  navigator.geolocation.getCurrentPosition(pos => {
+    pkMap.setView([pos.coords.latitude, pos.coords.longitude], 15);
+    drawDefaultField(pos.coords.latitude, pos.coords.longitude);
+    checkMyFarmWithNasa();
+  }, () => alert("GPS denied. Search your village or draw your field on the map."));
+}
+
+async function fetchWithTimeout(url, ms = 4500) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), ms);
+  try { return await fetch(url, { signal: ctrl.signal }); } finally { clearTimeout(id); }
+}
+
+async function checkMyFarmWithNasa() {
+  const statusEl = document.getElementById("locStatus");
+  statusEl.textContent = "🛰️ اس کھیت کا NASA سیٹلائٹ اور مٹی کا ڈیٹا چیک ہو رہا ہے...";
+  const { lat, lon } = pkState;
+  const pUrl = `https://power.larc.nasa.gov/api/temporal/climatology/point?parameters=T2M,T2M_MIN,T2M_MAX,PRECTOTCORR,GWETROOT,ALLSKY_SFC_SW_DWN&community=AG&longitude=${lon.toFixed(3)}&latitude=${lat.toFixed(3)}&format=JSON`;
+  const sUrl = `https://rest.isric.org/soilgrids/v2.0/properties/query?lon=${lon.toFixed(4)}&lat=${lat.toFixed(4)}&property=clay&property=sand&property=phh2o&depth=0-5cm&value=mean`;
+
+  const [pRes, sRes] = await Promise.allSettled([fetchWithTimeout(pUrl, 7000), fetchWithTimeout(sUrl, 4500)]);
+  const safe = (v, fb) => (v != null && v > -900 ? v : fb);
+
+  if (pRes.status === "fulfilled" && pRes.value.ok) {
+    const p = (await pRes.value.json())?.properties?.parameter;
+    const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+    const days = [31,28,31,30,31,30,31,31,30,31,30,31];
+    let rainMm = 0, etMm = 0;
+    months.forEach((m, i) => {
+      const tm = safe(p.T2M?.[m], 24), tmx = safe(p.T2M_MAX?.[m], 32), tmn = safe(p.T2M_MIN?.[m], 16), ra = safe(p.ALLSKY_SFC_SW_DWN?.[m], 18);
+      rainMm += Math.max(0, safe(p.PRECTOTCORR?.[m], 1) * days[i]);
+      etMm += Math.max(0.4, 0.0023 * (tm + 17.8) * Math.sqrt(Math.max(2, tmx - tmn)) * (ra * 0.408)) * days[i];
+    });
+    pkState.liveWeather = {
+      rainMm: Math.round(rainMm), etMm: Math.round(etMm),
+      peakHeat: Math.round(Math.max(...months.map(m => safe(p.T2M_MAX?.[m], 35)))),
+      wetness: months.reduce((s, m) => s + safe(p.GWETROOT?.[m], 0.35), 0) / 12
+    };
+  }
+  if (sRes.status === "fulfilled" && sRes.value.ok) {
+    const layers = (await sRes.value.json())?.properties?.layers || [];
+    const getV = n => { const l = layers.find(x => x.name === n); const v = l?.depths?.[0]?.values?.mean; return v != null ? v / (l.unit_measure?.d_factor || 10) : null; };
+    const clay = getV("clay"), sand = getV("sand"), ph = getV("phh2o");
+    if (clay != null && sand != null) {
+      pkState.liveSoil = { soilText: clay >= 27 ? "Clay Loam (چکنی میرا)" : sand >= 52 ? "Sandy Loam (ریتلی میرا)" : "Silt Loam (میرا زمین)", pH: ph ? ph.toFixed(1) : "—" };
+    }
+  }
+  statusEl.textContent = `✅ کھیت (${lat.toFixed(3)}, ${lon.toFixed(3)}) کا تازہ ڈیٹا لوڈ ہو گیا!`;
+  renderSignals(); renderPkRotations();
+}
+
+function getFarmMetrics() {
+  const b = PK_REGIONS[pkState.regionKey];
+  return {
+    rainMm: pkState.liveWeather?.rainMm ?? b.rainMm,
+    etMm: pkState.liveWeather?.etMm ?? b.etMm,
+    peakHeat: pkState.liveWeather?.peakHeat ?? b.peakHeat,
+    wetness: pkState.liveWeather?.wetness ?? b.wetness,
+    soilText: pkState.liveSoil?.soilText ?? b.soilText,
+    pH: pkState.liveSoil?.pH ?? b.pH
+  };
+}
+
+function renderSignals() {
+  const m = getFarmMetrics(), t = I18N[pkState.lang];
+  const deficit = m.rainMm - m.etMm;
+  const wCls = pkState.waterKey === "rainfed" && m.rainMm < 350 ? "sig-bad" : deficit < -800 ? "sig-warn" : "sig-good";
+  const hCls = m.peakHeat >= 41 ? "sig-bad" : m.peakHeat >= 35 ? "sig-warn" : "sig-good";
+  document.getElementById("signalGrid").innerHTML = `
+    <div class="signal-box ${wCls}"><div class="big-ico">💧</div><div class="sig-head">${t.waterLabel}: ${m.rainMm} / ${m.etMm} mm</div><div class="sig-sub">${m.rainMm < 400 ? t.waterLow : t.waterOk}</div></div>
+    <div class="signal-box ${hCls}"><div class="big-ico">☀️</div><div class="sig-head">${t.heatLabel}: ${m.peakHeat}°C</div><div class="sig-sub">${m.peakHeat >= 41 ? t.heatHigh : t.heatOk}</div></div>
+    <div class="signal-box ${m.wetness < 0.25 ? "sig-warn" : "sig-good"}"><div class="big-ico">🪱</div><div class="sig-head">${t.soilLabel}: ${m.soilText}</div><div class="sig-sub">Moisture: ${Math.round(m.wetness*100)}% · pH: ${m.pH}</div></div>
+  `;
+}
+
+function renderPkRotations() {
+  const list = PK_ROTATIONS[pkState.cropKey], isEn = pkState.lang === "en";
+  document.getElementById("pkRotationGrid").innerHTML = list.map(r => {
+    const desc = isEn ? r.benefitEn : r.benefitUr;
+    return `
+    <div class="rot-card ${r.best ? "best" : ""}">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;">
+        <strong style="font-size:1rem;color:${r.best ? "var(--green)" : "var(--ink)"};">${r.best ? "⭐ " : ""}${isEn ? r.titleEn : r.titleUr}</strong>
+        <button class="btn-voice" style="padding:0.22rem 0.6rem;font-size:0.76rem;" onclick='speakText(${JSON.stringify(desc)})'>🔊</button>
+      </div>
+      <div class="crop-chain">${r.crops.join(" → ")}</div>
+      <div style="font-size:0.84rem;">${r.waterTag} &nbsp;|&nbsp; ${r.soilTag}</div>
+      <p class="${isEn ? "ltr" : "rtl"}" style="margin:0;font-size:0.9rem;">${desc}</p>
+    </div>`;
+  }).join("");
+}
+
+// ============================================================================
+// REAL SPOKEN VOICE OUTPUT (Backend gTTS MP3 + Browser Fallback)
+// ============================================================================
+async function speakText(text) {
+  const backendUrl = document.getElementById("pkBackendUrl").value.replace(/\/$/, "");
+  const audioEl = document.getElementById("ttsAudio");
+  try {
+    const resp = await fetch(`${backendUrl}/api/tts`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, lang: pkState.lang })
+    });
+    if (!resp.ok) throw new Error(`TTS HTTP ${resp.status}`);
+    const blob = await resp.blob();
+    audioEl.src = URL.createObjectURL(blob);
+    await audioEl.play();
+  } catch (err) {
+    // Only use browser speechSynthesis if an appropriate voice exists (Mac en-US skips Urdu script!)
+    if ("speechSynthesis" in window) {
+      const voices = window.speechSynthesis.getVoices();
+      const targetPrefix = pkState.lang === "en" ? "en" : "ur";
+      const voice = voices.find(v => v.lang.startsWith(targetPrefix)) || voices.find(v => v.lang.startsWith("hi"));
+      if (voice) {
+        window.speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.voice = voice; u.lang = voice.lang;
+        window.speechSynthesis.speak(u);
+      } else {
+        console.warn("TTS backend failed & no Urdu voice on macOS:", err);
+      }
+    }
+  }
+}
+
+function speakSignals() {
+  const m = getFarmMetrics();
+  if (pkState.lang === "en") speakText(`Your ${pkState.areaAcres.toFixed(1)} acre field gets ${m.rainMm} mm rainfall, peak heat ${m.peakHeat} degrees, and soil is ${m.soilText}.`);
+  else speakText(`آپ کے ${pkState.areaAcres.toFixed(1)} ایکڑ کھیت پر سالانہ بارش ${m.rainMm} ملی میٹر ہے، زیادہ سے زیادہ گرمی ${m.peakHeat} ڈگری ہے، اور مٹی ${m.soilText} ہے۔`);
+}
+function speakBestRotation() {
+  const b = PK_ROTATIONS[pkState.cropKey].find(r => r.best);
+  speakText(pkState.lang === "en" ? b.benefitEn : b.benefitUr);
+}
+function speakSummary() {
+  const m = getFarmMetrics(), b = PK_ROTATIONS[pkState.cropKey].find(r => r.best);
+  if (pkState.lang === "en") speakText(`Field is ${pkState.areaAcres.toFixed(1)} acres. Rain ${m.rainMm} mm, peak heat ${m.peakHeat} degrees. Best rotation: ${b.titleEn}. ${b.benefitEn}`);
+  else speakText(`آپ کا کھیت ${pkState.areaAcres.toFixed(1)} ایکڑ ہے۔ بارش ${m.rainMm} ملی میٹر اور گرمی ${m.peakHeat} ڈگری ہے۔ بہترین مشورہ: ${b.titleUr}۔ ${b.benefitUr}`);
+}
+function speakAiReply() { if (pkState.lastAiReply) speakText(pkState.lastAiReply); }
+
+// ============================================================================
+// REAL VOICE INPUT (MediaRecorder -> Gemini Multimodal Audio)
+// ============================================================================
+async function toggleAudioRecording() {
+  const btn = document.getElementById("micBtn"), t = I18N[pkState.lang], replyBox = document.getElementById("aiReplyBox");
+  if (!pkState.isRecording) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      pkState.audioChunks = [];
+      pkState.mediaRecorder = new MediaRecorder(stream);
+      pkState.mediaRecorder.ondataavailable = e => { if (e.data.size > 0) pkState.audioChunks.push(e.data); };
+      pkState.mediaRecorder.onstop = async () => {
+        stream.getTracks().forEach(tr => tr.stop());
+        const mime = pkState.mediaRecorder.mimeType || "audio/webm";
+        const blob = new Blob(pkState.audioChunks, { type: mime });
+        await sendVoiceAudioToGemini(blob, mime);
+      };
+      pkState.mediaRecorder.start();
+      pkState.isRecording = true;
+      btn.className = "big-btn btn-red";
+      btn.textContent = t.micStop;
+      replyBox.textContent = "🎤 ریکارڈنگ جاری ہے... سوال بول کر دوبارہ بٹن دبائیں۔ (Recording... tap Stop when done)";
+    } catch (err) {
+      replyBox.textContent = `❌ Microphone blocked or unavailable (${err.message}). Allow microphone permission in Chrome/Safari or use the quick buttons below.`;
+    }
+  } else {
+    pkState.isRecording = false;
+    btn.className = "big-btn btn-amber";
+    btn.textContent = t.micStart;
+    pkState.mediaRecorder.stop();
+  }
+}
+
+async function sendVoiceAudioToGemini(blob, mime) {
+  const replyBox = document.getElementById("aiReplyBox");
+  replyBox.textContent = "🤖 آپ کی آواز Gemini AI کو بھیجی جا رہی ہے...";
+  const reader = new FileReader();
+  reader.onloadend = async () => {
+    const b64 = reader.result.split(",")[1];
+    const m = getFarmMetrics(), best = PK_ROTATIONS[pkState.cropKey].find(r => r.best), t = I18N[pkState.lang];
+    const backendUrl = document.getElementById("pkBackendUrl").value.replace(/\/$/, "");
+    try {
+      const resp = await fetch(`${backendUrl}/api/ai/kissan-voice`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          lat: pkState.lat, lon: pkState.lon, area_acres: pkState.areaAcres,
+          rain_mm: m.rainMm, peak_temp_c: m.peakHeat, soil: m.soilText, ph: m.pH,
+          water_source: pkState.waterKey, current_crop: pkState.cropKey,
+          recommended_rotation: best.titleEn, audio_b64: b64, mime_type: mime, language: t.langName
+        })
+      });
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.detail || `HTTP ${resp.status}`);
+      pkState.lastAiReply = data.reply;
+      replyBox.textContent = data.reply;
+      speakText(data.reply);
+    } catch (err) {
+      replyBox.textContent = `❌ Gemini Voice Error: ${err.message}`;
+    }
+  };
+  reader.readAsDataURL(blob);
+}
+
+function quickAsk(q) { document.getElementById("farmerQuestion").value = q; askGeminiAdvisor(); }
+
+async function askGeminiAdvisor() {
+  const q = document.getElementById("farmerQuestion").value.trim();
+  if (!q) return;
+  const replyBox = document.getElementById("aiReplyBox");
+  replyBox.textContent = "🤖 Gemini AI مشورہ تیار کر رہا ہے...";
+  const m = getFarmMetrics(), best = PK_ROTATIONS[pkState.cropKey].find(r => r.best), t = I18N[pkState.lang];
+  const backendUrl = document.getElementById("pkBackendUrl").value.replace(/\/$/, "");
+  try {
+    const resp = await fetch(`${backendUrl}/api/ai/kissan-advisor`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        lat: pkState.lat, lon: pkState.lon, area_acres: pkState.areaAcres,
+        rain_mm: m.rainMm, peak_temp_c: m.peakHeat, soil: m.soilText, ph: m.pH,
+        water_source: pkState.waterKey, current_crop: pkState.cropKey,
+        recommended_rotation: best.titleEn, question: q, language: t.langName
+      })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail || `HTTP ${resp.status}`);
+    pkState.lastAiReply = data.reply;
+    replyBox.textContent = data.reply;
+    speakText(data.reply);
+  } catch (err) {
+    replyBox.textContent = `❌ Gemini Error: ${err.message}\n(Check GEMINI_API_KEY in backend/.env and ensure uvicorn is running on port 8000.)`;
+  }
+}
+
+function approxAreaHa(ring) {
+  if (ring.length < 3) return 0;
+  const kx = 111320 * Math.cos(ring[0][1] * Math.PI / 180), ky = 110540;
+  let area = 0;
+  for (let i = 0; i < ring.length - 1; i++) area += (ring[i][0] * kx) * (ring[i+1][1] * ky) - (ring[i+1][0] * kx) * (ring[i][1] * ky);
+  return Math.abs(area) / 20000;
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  initPkMap();
+  setLanguage("ur", document.querySelector(".lang-btn.active"));
+});
+</script>
+</body>
+</html>
