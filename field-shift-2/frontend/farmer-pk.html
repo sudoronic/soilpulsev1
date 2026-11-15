@@ -3,81 +3,105 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SoilPulse — کسان فیلڈ شفٹ (Field-Level Multi-Language Farmer App)</title>
+  <title>SoilPulse — کسان فیلڈ ایپ</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
   <style>
     :root {
-      --bg: #f6f3ea; --card: #ffffff; --ink: #17271d; --muted: #526256;
-      --green: #1f6b43; --green-soft: #e3f2e9; --amber: #c27d12; --amber-soft: #fdf2dc;
-      --red: #be422c; --red-soft: #fbe8e4; --blue: #196485; --border: #d8d1bf; --radius: 16px;
+      --bg: #f4f0e6;
+      --card: #ffffff;
+      --surface-alt: #eae4d5;
+      --ink: #101c15;
+      --muted: #4b5a50;
+      --green: #145333;
+      --green-soft: #dff1e7;
+      --amber: #a86b08;
+      --amber-soft: #fdf0d2;
+      --red: #b43b1e;
+      --red-soft: #fde8e1;
+      --blue: #116482;
+      --border: #c9c1ae;
+      --radius: 16px;
     }
     * { box-sizing: border-box; }
     body { margin: 0; font-family: "Noto Nastaliq Urdu", "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--ink); line-height: 1.65; }
-    header { background: linear-gradient(135deg, #15422a, #1d5a3b); color: #fff; padding: 0.95rem 1.25rem; border-bottom: 4px solid #e0a63b; }
-    .hdr { max-width: 1140px; margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.75rem; }
+
+    header { background: #102a1d; color: #fff; padding: 0.9rem 1.1rem; border-bottom: 4px solid #d4962a; }
+    .hdr { max-width: 980px; margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.7rem; }
     .brand-wrap { display: flex; align-items: center; gap: 0.75rem; }
-    .brand-wrap img { height: 52px; width: auto; border-radius: 10px; background: #fff; padding: 2px; }
-    .hdr h1 { margin: 0; font-size: 1.32rem; }
-    .hdr p { margin: 0.15rem 0 0; font-size: 0.85rem; color: #d5e8dc; }
+    .brand-wrap img { height: 50px; width: auto; border-radius: 10px; background: #fff; padding: 2px; }
+    .hdr h1 { margin: 0; font-size: 1.3rem; font-weight: 800; }
+    .hdr p { margin: 0.1rem 0 0; font-size: 0.84rem; color: #cfe0d5; }
     .hdr-actions { display: flex; gap: 0.45rem; flex-wrap: wrap; align-items: center; }
 
-    .lang-bar { background: #efebe0; border-bottom: 1px solid var(--border); padding: 0.55rem 1.25rem; }
-    .lang-inner { max-width: 1140px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; justify-content: space-between; }
-    .lang-pills { display: flex; flex-wrap: wrap; gap: 0.4rem; }
-    .lang-btn { padding: 0.36rem 0.8rem; border-radius: 999px; border: 2px solid var(--border); background: #fff; font-weight: 700; font-size: 0.84rem; cursor: pointer; }
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 0.35rem;
+      padding: 0.25rem 0.65rem; border-radius: 999px; font-size: 0.74rem; font-weight: 700;
+      background: rgba(255,255,255,0.14); color: #fff; border: 1px solid rgba(255,255,255,0.25);
+    }
+    .status-pill.ok { background: #197848; border-color: #6ce0a2; }
+
+    .lang-bar { background: var(--surface-alt); border-bottom: 1.5px solid var(--border); padding: 0.55rem 1.1rem; }
+    .lang-inner { max-width: 980px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: center; justify-content: space-between; }
+    .lang-pills { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+    .lang-btn { padding: 0.38rem 0.85rem; border-radius: 999px; border: 2px solid var(--border); background: #fff; font-weight: 700; font-size: 0.82rem; cursor: pointer; }
     .lang-btn.active { background: var(--green); color: #fff; border-color: var(--green); }
 
-    .container { max-width: 1140px; margin: 0 auto; padding: 1rem 1rem 3rem; }
-    .big-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem; padding: 0.75rem 1.1rem; border-radius: 14px; border: none; font-size: 0.94rem; font-weight: 700; cursor: pointer; }
+    .container { max-width: 980px; margin: 0 auto; padding: 1rem 1rem 3rem; }
+
+    .big-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 0.45rem;
+      padding: 0.82rem 1.15rem; border-radius: 12px; border: 2px solid transparent;
+      font-size: 0.96rem; font-weight: 800; cursor: pointer; text-decoration: none;
+    }
     .btn-green { background: var(--green); color: #fff; }
     .btn-blue { background: var(--blue); color: #fff; }
     .btn-amber { background: var(--amber); color: #fff; }
     .btn-red { background: var(--red); color: #fff; }
-    .btn-light { background: #fff; color: var(--ink); border: 2px solid var(--border); }
-    .btn-voice { background: #144d31; color: #fff; border: 2px solid #7dd3a3; border-radius: 999px; padding: 0.42rem 0.9rem; font-size: 0.85rem; cursor: pointer; font-weight: 700; }
+    .btn-light { background: #fff; color: var(--ink); border-color: var(--border); }
+    .btn-voice { background: #145333; color: #fff; border: 2px solid #7dd3a3; border-radius: 999px; padding: 0.42rem 0.9rem; font-size: 0.84rem; cursor: pointer; font-weight: 700; }
 
-    .card { background: var(--card); border: 2px solid var(--border); border-radius: var(--radius); padding: 1.05rem; margin-bottom: 1rem; box-shadow: 0 3px 12px rgba(0,0,0,0.05); }
-    .card-title { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; border-bottom: 2px solid #f0ece0; padding-bottom: 0.45rem; }
-    .card-title h2 { margin: 0; font-size: 1.12rem; }
-    .step-badge { background: var(--green-soft); color: var(--green); font-weight: 800; padding: 0.18rem 0.6rem; border-radius: 999px; font-size: 0.8rem; }
+    .card { background: var(--card); border: 2px solid var(--border); border-radius: var(--radius); padding: 1.05rem; margin-bottom: 1rem; box-shadow: 0 3px 12px rgba(16,28,21,0.06); }
+    .card-title { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; border-bottom: 2px solid var(--surface-alt); padding-bottom: 0.45rem; }
+    .card-title h2 { margin: 0; font-size: 1.1rem; font-weight: 800; }
+    .step-badge { background: var(--green); color: #fff; font-weight: 800; padding: 0.15rem 0.62rem; border-radius: 999px; font-size: 0.8rem; }
 
-    .search-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.75rem; }
-    .search-row input { flex: 1; min-width: 210px; padding: 0.65rem 0.85rem; border-radius: 12px; border: 2px solid var(--border); font-size: 0.94rem; }
+    .search-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.7rem; }
+    .search-row input { flex: 1; min-width: 200px; padding: 0.68rem 0.85rem; border-radius: 10px; border: 2px solid var(--border); font-size: 0.94rem; }
 
-    .icon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.65rem; }
-    .pick-card { background: #faf8f2; border: 2px solid var(--border); border-radius: 14px; padding: 0.75rem 0.55rem; text-align: center; cursor: pointer; }
-    .pick-card.active { background: var(--green-soft); border-color: var(--green); box-shadow: 0 0 0 2px rgba(31,107,67,0.2); }
-    .pick-card .ico { font-size: 1.8rem; display: block; margin-bottom: 0.15rem; }
-    .pick-card strong { display: block; font-size: 0.92rem; }
-    .pick-card small { color: var(--muted); font-size: 0.75rem; }
+    .icon-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 0.6rem; }
+    .pick-card { background: #faf8f2; border: 2px solid var(--border); border-radius: 12px; padding: 0.72rem 0.5rem; text-align: center; cursor: pointer; }
+    .pick-card.active { background: var(--green-soft); border-color: var(--green); box-shadow: 0 0 0 2px rgba(20,83,51,0.2); }
+    .pick-card .ico { font-size: 1.75rem; display: block; margin-bottom: 0.15rem; }
+    .pick-card strong { display: block; font-size: 0.9rem; }
+    .pick-card small { color: var(--muted); font-size: 0.74rem; }
 
-    #pkMap { width: 100%; height: 350px; border-radius: 14px; border: 2px solid var(--border); margin-top: 0.75rem; }
+    #pkMap { width: 100%; height: 340px; border-radius: 12px; border: 2px solid var(--border); margin-top: 0.7rem; }
 
     .field-pill-bar {
-      background: #f0ece1; border: 1px solid var(--border); border-radius: 12px;
-      padding: 0.65rem 0.85rem; margin-top: 0.65rem; font-size: 0.88rem;
-      display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: space-between; align-items: center;
+      background: var(--surface-alt); border: 1.5px solid var(--border); border-radius: 10px;
+      padding: 0.6rem 0.85rem; margin-top: 0.6rem; font-size: 0.87rem;
+      display: flex; flex-wrap: wrap; gap: 0.6rem; justify-content: space-between; align-items: center;
     }
 
     .signal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 0.75rem; }
-    .signal-box { border-radius: 14px; padding: 0.9rem; text-align: center; border: 2px solid transparent; }
-    .sig-good { background: var(--green-soft); border-color: #97d3b0; }
-    .sig-warn { background: var(--amber-soft); border-color: #ecc67b; }
-    .sig-bad { background: var(--red-soft); border-color: #eab0a5; }
-    .signal-box .big-ico { font-size: 2.1rem; }
-    .signal-box .sig-head { font-size: 1rem; font-weight: 800; margin: 0.18rem 0; }
+    .signal-box { border-radius: 14px; padding: 0.95rem; text-align: center; border: 2px solid transparent; }
+    .sig-good { background: var(--green-soft); border-color: #7cc99d; }
+    .sig-warn { background: var(--amber-soft); border-color: #e6ba64; }
+    .sig-bad { background: var(--red-soft); border-color: #e69d8e; }
+    .signal-box .big-ico { font-size: 2.15rem; }
+    .signal-box .sig-head { font-size: 1.02rem; font-weight: 800; margin: 0.18rem 0; }
     .signal-box .sig-sub { font-size: 0.84rem; }
 
-    .rot-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 0.85rem; }
+    .rot-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.85rem; }
     .rot-card { border: 2px solid var(--border); border-radius: 14px; padding: 0.95rem; background: #fff; display: flex; flex-direction: column; gap: 0.5rem; }
-    .rot-card.best { border: 3px solid var(--green); background: #f7fcf9; }
-    .crop-chain { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; background: #f2efe5; padding: 0.5rem; border-radius: 10px; font-weight: 700; font-size: 0.86rem; }
+    .rot-card.best { border: 3px solid var(--green); background: #f6fcf8; }
+    .crop-chain { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center; background: var(--surface-alt); padding: 0.5rem; border-radius: 10px; font-weight: 800; font-size: 0.86rem; }
 
-    .ai-box { background: linear-gradient(180deg, #f3faf6 0%, #ffffff 100%); border: 2px solid #8ec8a6; border-radius: var(--radius); padding: 1.05rem; }
-    .ai-controls { display: flex; flex-wrap: wrap; gap: 0.55rem; margin: 0.65rem 0; align-items: center; }
-    .ai-controls input[type="text"] { flex: 1; min-width: 210px; padding: 0.72rem 0.85rem; border-radius: 12px; border: 2px solid var(--border); font-size: 0.94rem; }
-    .ai-reply { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 0.9rem; font-size: 0.98rem; min-height: 70px; white-space: pre-wrap; }
+    .advisor-box { background: #fbfaf5; border: 2px solid var(--border); border-radius: var(--radius); padding: 1.05rem; }
+    .ai-controls { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.65rem 0; align-items: center; }
+    .ai-controls input[type="text"] { flex: 1; min-width: 200px; padding: 0.72rem 0.85rem; border-radius: 10px; border: 2px solid var(--border); font-size: 0.94rem; }
+    .ai-reply { background: #fff; border: 1.5px solid var(--border); border-radius: 10px; padding: 0.9rem; font-size: 0.98rem; min-height: 70px; white-space: pre-wrap; }
     .rtl { direction: rtl; text-align: right; }
     .ltr { direction: ltr; text-align: left; }
   </style>
@@ -89,20 +113,21 @@
     <div class="brand-wrap">
       <img src="logo.jpeg" alt="SoilPulse Logo" onerror="this.style.display='none'" />
       <div>
-        <h1 id="hdrTitle">🌾 SoilPulse — کسان فیلڈ شفٹ</h1>
-        <p id="hdrSub">اپنی اصل زمین منتخب کریں اور آواز میں مشورہ سنیں (NASA سیٹلائٹ + Gemini AI)</p>
+        <h1 id="hdrTitle">🌾 SoilPulse — کسان فیلڈ ایپ</h1>
+        <p id="hdrSub">اپنے کھیت کا موسم، مٹی اور بہتر فصلوں کا مشورہ (NASA سیٹلائٹ ڈیٹا)</p>
       </div>
     </div>
     <div class="hdr-actions">
+      <span id="liveConnPill" class="status-pill">⏳ Connecting...</span>
       <button class="btn-voice" onclick="speakSummary()" id="listenAllBtn">🔊 خلاصہ سنیں</button>
-      <a href="index.html" class="big-btn btn-light" style="padding:0.42rem 0.85rem;font-size:0.84rem;text-decoration:none;">🔬 Expert View</a>
+      <a href="index.html" class="big-btn btn-light" style="padding:0.4rem 0.8rem;font-size:0.82rem;">🔬 Expert View</a>
     </div>
   </div>
 </header>
 
 <div class="lang-bar">
   <div class="lang-inner">
-    <strong style="font-size:0.86rem;">🗣️ زبان منتخب کریں / Language:</strong>
+    <strong style="font-size:0.85rem;">🗣️ زبان / Language:</strong>
     <div class="lang-pills">
       <button class="lang-btn active" onclick="setLanguage('ur', this)">اردو (Urdu)</button>
       <button class="lang-btn" onclick="setLanguage('pa', this)">پنجابی (Punjabi)</button>
@@ -114,25 +139,25 @@
 </div>
 
 <div class="container">
-  <!-- STEP 1: SELECT ACTUAL FARM FIELD -->
+  <!-- STEP 1: FIND & DRAW ACTUAL FARM -->
   <div class="card">
     <div class="card-title">
       <h2><span class="step-badge">1</span> <span id="step1Title">اپنا گاؤں تلاش کریں یا نقشے پر اپنا کھیت بنائیں</span></h2>
-      <div style="display:flex;gap:0.45rem;flex-wrap:wrap;">
-        <button class="big-btn btn-amber" style="padding:0.48rem 0.85rem;font-size:0.84rem;" onclick="loadSnicFieldsInFarmer()">🌾 پنجاب کے 4,678 کھیت لوڈ کریں</button>
-        <button class="big-btn btn-blue" style="padding:0.48rem 0.85rem;font-size:0.84rem;" onclick="useMyGps()" id="gpsBtn">📍 کھیت میں کھڑے ہیں؟ (GPS)</button>
+      <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+        <button class="big-btn btn-amber" style="padding:0.45rem 0.85rem;font-size:0.82rem;" onclick="loadSnicFieldsInFarmer()">🌾 پنجاب کے 4,678 کھیت</button>
+        <button class="big-btn btn-blue" style="padding:0.45rem 0.85rem;font-size:0.82rem;" onclick="useMyGps()" id="gpsBtn">📍 کھیت میں کھڑے ہیں؟</button>
       </div>
     </div>
 
     <div class="search-row">
-      <input type="text" id="villageSearchInput" placeholder="گاؤں / تحصیل / شہر لکھیں (مثلاً: Depalpur, Okara, Multan, Sahiwal, Mardan)" />
-      <button class="big-btn btn-green" style="padding:0.6rem 1rem;font-size:0.9rem;" onclick="searchVillage()">🔍 تلاش کریں (Search)</button>
+      <input type="text" id="villageSearchInput" placeholder="گاؤں / تحصیل لکھیں (مثلاً: Depalpur, Okara, Multan, Mardan)" />
+      <button class="big-btn btn-green" style="padding:0.6rem 1rem;font-size:0.9rem;" onclick="searchVillage()">🔍 تلاش کریں</button>
     </div>
 
     <div class="icon-grid" id="pkRegionGrid">
-      <div class="pick-card active" onclick="selectPkRegion('depalpur', this)"><span class="ico">🌾🛰️</span><strong>دیپالپور / اوکاڑہ</strong><small>SNIC 4,678 Fields Zone</small></div>
+      <div class="pick-card active" onclick="selectPkRegion('depalpur', this)"><span class="ico">🌾🛰️</span><strong>دیپالپور / اوکاڑہ</strong><small>SNIC 4,678 Fields</small></div>
       <div class="pick-card" onclick="selectPkRegion('multan', this)"><span class="ico">☀️☁️</span><strong>ملتان / جنوبی پنجاب</strong><small>Cotton–Wheat Heat</small></div>
-      <div class="pick-card" onclick="selectPkRegion('gujranwala', this)"><span class="ico">🌾💧</span><strong>گوجرانوالہ / وسطی پنجاب</strong><small>Rice–Wheat Belt</small></div>
+      <div class="pick-card" onclick="selectPkRegion('gujranwala', this)"><span class="ico">🌾💧</span><strong>گوجرانوالہ / وسطی</strong><small>Rice–Wheat Belt</small></div>
       <div class="pick-card" onclick="selectPkRegion('nawabshah', this)"><span class="ico">🔥🌾</span><strong>نوابشاہ / سندھ</strong><small>Heat &amp; Salinity</small></div>
       <div class="pick-card" onclick="selectPkRegion('dikhan', this)"><span class="ico">⛰️🌧️</span><strong>ڈی آئی خان / بارانی</strong><small>Rainfed / Barani</small></div>
     </div>
@@ -140,16 +165,16 @@
     <div id="pkMap"></div>
 
     <div class="field-pill-bar">
-      <div><strong>📐 منتخب کھیت (Selected Field):</strong> <span id="fieldInfoText">40.0 ایکڑ (320 کنال) · (30.9330, 73.6830)</span></div>
-      <div id="locStatus" style="color:var(--muted);">نقشے کے بائیں جانب ⬟ بٹن سے اپنا کھیت کھینچیں یا کسی کھیت پر ٹیپ کریں۔</div>
+      <div><strong>📐 منتخب کھیت:</strong> <span id="fieldInfoText">40.0 ایکڑ (320 کنال) · (30.9330, 73.6830)</span></div>
+      <div id="locStatus" style="color:var(--muted);">نقشے کے بائیں جانب ⬟ بٹن سے اپنا کھیت بنائیں یا کسی کھیت پر ٹیپ کریں۔</div>
     </div>
   </div>
 
-  <!-- STEP 2: CURRENT CROP & WATER SOURCE -->
+  <!-- STEP 2: CROP & WATER SOURCE -->
   <div class="card">
-    <div class="card-title"><h2><span class="step-badge">2</span> <span id="step2Title">فصل اور پانی کا ذریعہ منتخب کریں (Rabi/Kharif &amp; Water)</span></h2></div>
+    <div class="card-title"><h2><span class="step-badge">2</span> <span id="step2Title">فصل اور پانی کا ذریعہ منتخب کریں</span></h2></div>
 
-    <div class="icon-grid" id="cropPickGrid" style="margin-bottom:0.75rem;">
+    <div class="icon-grid" id="cropPickGrid" style="margin-bottom:0.65rem;">
       <div class="pick-card active" onclick="selectCurrentCrop('cotton_wheat', this)"><span class="ico">☁️🌾</span><strong>کپاس + گندم</strong><small>Kharif Cotton + Rabi Wheat</small></div>
       <div class="pick-card" onclick="selectCurrentCrop('rice_wheat', this)"><span class="ico">🌾💧</span><strong>چاول + گندم</strong><small>Kharif Rice + Rabi Wheat</small></div>
       <div class="pick-card" onclick="selectCurrentCrop('barani_wheat', this)"><span class="ico">🌽🌱</span><strong>بارانی گندم / مکئی</strong><small>Rainfed Wheat / Maize</small></div>
@@ -162,59 +187,62 @@
     </div>
 
     <div style="margin-top:0.85rem;">
-      <button class="big-btn btn-green" style="width:100%;" onclick="checkMyFarmWithNasa()" id="checkBtn">🛰️ اس کھیت کا موسم، زمین اور پانی چیک کریں (Check This Field)</button>
+      <button class="big-btn btn-green" style="width:100%;" onclick="checkMyFarmWithNasa()" id="checkBtn">🛰️ اس کھیت کا موسم اور مٹی چیک کریں</button>
     </div>
   </div>
 
-  <!-- STEP 3: TRAFFIC LIGHTS -->
+  <!-- STEP 3: BOLD TRAFFIC LIGHTS -->
   <div class="card">
     <div class="card-title"><h2><span class="step-badge">3</span> <span id="step3Title">آپ کے کھیت کی موجودہ حالت</span></h2><button class="btn-voice" onclick="speakSignals()">🔊 سنیں</button></div>
     <div class="signal-grid" id="signalGrid"></div>
   </div>
 
-  <!-- STEP 4: ROTATIONS -->
+  <!-- STEP 4: RABI + KHARIF ROTATIONS -->
   <div class="card">
-    <div class="card-title"><h2><span class="step-badge">4</span> <span id="step4Title">بہتر فصلوں کا ہیر پھیر (Rabi + Kharif Plan)</span></h2><button class="btn-voice" onclick="speakBestRotation()">🔊 بہترین مشورہ سنیں</button></div>
+    <div class="card-title"><h2><span class="step-badge">4</span> <span id="step4Title">بہتر فصلوں کا ہیر پھیر (ربیع + خریف)</span></h2><button class="btn-voice" onclick="speakBestRotation()">🔊 بہترین مشورہ سنیں</button></div>
     <div class="rot-grid" id="pkRotationGrid"></div>
   </div>
 
-  <!-- STEP 5: GEMINI MULTIMODAL VOICE + TEXT AI -->
-  <div class="ai-box">
-    <div class="card-title" style="border-bottom-color:#cbe6d6;"><h2 id="step5Title">🤖 کسان دوست AI مشیر (SoilPulse Gemini AI)</h2><button class="btn-voice" onclick="speakAiReply()">🔊 جواب سنیں</button></div>
-    <p id="aiHint" style="margin:0;font-size:0.86rem;color:var(--muted);">
-      مائیک بٹن دبا کر اپنی زبان (اردو / پنجابی / سندھی / پشتو) میں بولیں، دوبارہ دبا کر بھیجیں — یا نیچے تیار سوال دبائیں:
-    </p>
-    <div class="ai-controls">
-      <button class="big-btn btn-amber" onclick="toggleAudioRecording()" id="micBtn">🎤 بول کر پوچھیں (Record Voice)</button>
-      <input type="text" id="farmerQuestion" placeholder="یہاں سوال لکھیں یا اوپر مائیک سے بولیں..." />
-      <button class="big-btn btn-green" onclick="askGeminiAdvisor()" id="askBtn">✨ مشورہ لیں</button>
+  <!-- STEP 5: SUBTLE FARM ADVISOR HELPER -->
+  <div class="advisor-box">
+    <div class="card-title" style="border-bottom-color:var(--surface-alt);">
+      <h2 id="step5Title">🗣️ زرعی مشیر سے سوال پوچھیں (Voice Farm Helper)</h2>
+      <button class="btn-voice" onclick="speakAiReply()">🔊 جواب سنیں</button>
     </div>
-    <div class="ai-controls" id="quickChipsRow" style="margin-top:0.25rem;"></div>
-    <div id="aiReplyBox" class="ai-reply rtl">ابھی کوئی سوال نہیں پوچھا گیا۔ اوپر دیے گئے بٹن دبائیں یا بول کر پوچھیں۔</div>
+    <div class="ai-controls">
+      <button class="big-btn btn-amber" onclick="toggleAudioRecording()" id="micBtn">🎤 بول کر پوچھیں</button>
+      <input type="text" id="farmerQuestion" placeholder="یہاں سوال لکھیں یا بولیں..." />
+      <button class="big-btn btn-green" onclick="askGeminiAdvisor()" id="askBtn">مشورہ سنیں</button>
+    </div>
+    <div class="ai-controls" id="quickChipsRow" style="margin-top:0.2rem;"></div>
+    <div id="aiReplyBox" class="ai-reply rtl">کسی بھی سوال پر ٹیپ کریں یا مائیک بٹن دبا کر اپنی زبان میں پوچھیں۔</div>
     <audio id="ttsAudio" style="display:none;"></audio>
-    <input type="hidden" id="pkBackendUrl" value="http://127.0.0.1:8000" />
   </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
 <script>
+const API_BASE = (location.hostname === "127.0.0.1" || location.hostname === "localhost")
+  ? "http://127.0.0.1:8000"
+  : "https://backend-3ocg.onrender.com";
+
 const I18N = {
   ur: {
-    dir:"rtl", langName:"Urdu (اردو)", hdrTitle:"🌾 SoilPulse — کسان فیلڈ شفٹ", hdrSub:"اپنی اصل زمین منتخب کریں اور آواز میں مشورہ سنیں (NASA سیٹلائٹ + Gemini AI)",
-    listenAll:"🔊 خلاصہ سنیں", step1:"اپنا گاؤں تلاش کریں یا نقشے پر اپنا کھیت بنائیں", gps:"📍 کھیت میں کھڑے ہیں؟ (GPS)", step2:"فصل اور پانی کا ذریعہ منتخب کریں",
-    checkBtn:"🛰️ اس کھیت کا موسم، زمین اور پانی چیک کریں", step3:"آپ کے کھیت کی موجودہ حالت", step4:"بہتر فصلوں کا ہیر پھیر (ربیع + خریف پلان)",
-    step5:"🤖 کسان دوست AI مشیر (SoilPulse Gemini AI)", micStart:"🎤 بول کر پوچھیں (Record)", micStop:"⏹️ روکیں اور بھیجیں (Stop & Send)", ask:"✨ مشورہ لیں",
+    dir:"rtl", langName:"Urdu (اردو)", hdrTitle:"🌾 SoilPulse — کسان فیلڈ ایپ", hdrSub:"اپنے کھیت کا موسم، مٹی اور بہتر فصلوں کا مشورہ (NASA سیٹلائٹ ڈیٹا)",
+    listenAll:"🔊 خلاصہ سنیں", step1:"اپنا گاؤں تلاش کریں یا نقشے پر اپنا کھیت بنائیں", gps:"📍 کھیت میں کھڑے ہیں؟", step2:"فصل اور پانی کا ذریعہ منتخب کریں",
+    checkBtn:"🛰️ اس کھیت کا موسم اور مٹی چیک کریں", step3:"آپ کے کھیت کی موجودہ حالت", step4:"بہتر فصلوں کا ہیر پھیر (ربیع + خریف)",
+    step5:"🗣️ زرعی مشیر سے سوال پوچھیں", micStart:"🎤 بول کر پوچھیں", micStop:"⏹️ روکیں اور بھیجیں", ask:"مشورہ سنیں",
     chips:["پانی کم ہے، کون سی فصل بہتر ہے؟","کھاد کا خرچہ کم کرنے کے لیے کیا لگائیں؟","شدید گرمی سے فصل کیسے بچائیں؟","اس کھیت کے لیے بہترین فصل کون سی ہے؟"],
-    waterLabel:"پانی کی کمی / بارش", heatLabel:"زیادہ سے زیادہ گرمی", soilLabel:"کھیت کی مٹی",
-    waterLow:"پانی کی کمی ہے — کم پانی والی فصل لگائیں", waterOk:"بارش اور نمی بہتر ہے",
+    waterLabel:"پانی اور بارش", heatLabel:"زیادہ سے زیادہ گرمی", soilLabel:"کھیت کی مٹی",
+    waterLow:"پانی کی کمی — کم پانی والی فصل لگائیں", waterOk:"بارش اور نمی بہتر ہے",
     heatHigh:"شدید گرمی — گرمی برداشت کرنے والی فصل چنیں", heatOk:"معتدل گرمی — وقت پر بوائی کریں"
   },
   pa: {
-    dir:"rtl", langName:"Punjabi (Shahmukhi پنجابی)", hdrTitle:"🌾 SoilPulse — کسان بھرا ایپ", hdrSub:"اپنی اصل زمین چُنو تے آواز وچ صلاح سنو (NASA + Gemini AI)",
-    listenAll:"🔊 ساری گل سنو", step1:"اپنا پنڈ لبھو یا نقشے تے کھیت بناؤ", gps:"📍 کھیت وچ کھڑے او؟ (GPS)", step2:"فصل تے پانی دا ذریعہ چُنو",
+    dir:"rtl", langName:"Punjabi (Shahmukhi پنجابی)", hdrTitle:"🌾 SoilPulse — کسان بھرا ایپ", hdrSub:"اپنی زمین چُنو تے آواز وچ فصل دی صلاح سنو",
+    listenAll:"🔊 ساری گل سنو", step1:"اپنا پنڈ لبھو یا نقشے تے کھیت بناؤ", gps:"📍 کھیت وچ کھڑے او؟", step2:"فصل تے پانی دا ذریعہ چُنو",
     checkBtn:"🛰️ اس کھیت دا موسم تے مٹی ویکھو", step3:"تہاڈے کھیت دا حال", step4:"ودھیا فصلاں دا ہیر پھیر (ربیع + خریف)",
-    step5:"🤖 کسان دوست AI صلاح کار", micStart:"🎤 بول کے پچھو (Record)", micStop:"⏹️ روکو تے بھیجو (Stop)", ask:"✨ صلاح لوو",
+    step5:"🗣️ زرعی صلاح کار توں پچھو", micStart:"🎤 بول کے پچھو", micStop:"⏹️ روکو تے بھیجو", ask:"صلاح لوو",
     chips:["پانی گھٹ اے، کیہڑی فصل لائیے؟","کھاد دا خرچہ گھٹ کرن لئی کیہہ بیجیے؟","سخت گرمی توں فصل کیویں بچائیے؟","اس کھیت لئی سب توں ودھیا فصل کیہڑی اے؟"],
     waterLabel:"پانی تے مینہہ", heatLabel:"ودھ توں ودھ گرمی", soilLabel:"کھیت دی مٹی",
     waterLow:"پانی گھٹ اے — گھٹ پانی والی فصل لاؤ", waterOk:"بارش تے نمی چنگی اے",
@@ -222,9 +250,9 @@ const I18N = {
   },
   sd: {
     dir:"rtl", langName:"Sindhi (سنڌي)", hdrTitle:"🌾 SoilPulse — هاري دوست ايپ", hdrSub:"پنهنجي اصل زمين چونڊيو ۽ آواز ۾ صلاح ٻڌو",
-    listenAll:"🔊 خلاصو ٻڌو", step1:"پنهنجو ڳوٺ ڳوليو يا نقشي تي زمين ٺاهيو", gps:"📍 زمين تي بيٺا آهيو؟ (GPS)", step2:"فصل ۽ پاڻي جو ذريعو چونڊيو",
+    listenAll:"🔊 خلاصو ٻڌو", step1:"پنهنجو ڳوٺ ڳوليو يا نقشي تي زمين ٺاهيو", gps:"📍 زمين تي بيٺا آهيو؟", step2:"فصل ۽ پاڻي جو ذريعو چونڊيو",
     checkBtn:"🛰️ هن زمين جي موسم ۽ مٽي چيڪ ڪريو", step3:"توهان جي زمين جي حالت", step4:"بهتر فصلن جي ڦيرڦار (ربيع + خريف)",
-    step5:"🤖 هاري دوست AI مشير", micStart:"🎤 ڳالهائي پڇو (Record)", micStop:"⏹️ روڪيو ۽ موڪليو", ask:"✨ صلاح وٺو",
+    step5:"🗣️ زرعي مشير کان پڇو", micStart:"🎤 ڳالهائي پڇو", micStop:"⏹️ روڪيو ۽ موڪليو", ask:"صلاح وٺو",
     chips:["پاڻي گهٽ آهي، ڪهڙو فصل بهتر آهي؟","ڀاڻ جو خرچ گهٽ ڪرڻ لاءِ ڇا پوکجي؟","سخت گرمي کان فصل ڪيئن بچائجي؟","هن زمين لاءِ بهترين فصل ڪهڙو آهي؟"],
     waterLabel:"پاڻي ۽ برسات", heatLabel:"وڌ ۾ وڌ گرمي", soilLabel:"زمين جي مٽي",
     waterLow:"پاڻي گهٽ آهي — گهٽ پاڻي وارو فصل پوکيو", waterOk:"برسات ۽ گهم بهتر آهي",
@@ -232,19 +260,19 @@ const I18N = {
   },
   ps: {
     dir:"rtl", langName:"Pashto (پښتو)", hdrTitle:"🌾 SoilPulse — د بزګر مرستندویه", hdrSub:"خپله اصلي ځمکه وټاکئ او په غږ کې مشوره واورئ",
-    listenAll:"🔊 لنډیز واورئ", step1:"خپل کلی ولټوئ یا پر نقشه خپله ځمکه رسم کړئ", gps:"📍 په پټي کې ولاړ یاست؟ (GPS)", step2:"فصل او د اوبو سرچینه وټاکئ",
+    listenAll:"🔊 لنډیز واورئ", step1:"خپل کلی ولټوئ یا پر نقشه خپله ځمکه رسم کړئ", gps:"📍 په پټي کې ولاړ یاست؟", step2:"فصل او د اوبو سرچینه وټاکئ",
     checkBtn:"🛰️ د دې پټي هوا او خاوره وګورئ", step3:"ستاسو د پټي اوسنی حالت", step4:"د فصلونو غوره بدلون",
-    step5:"🤖 د بزګر ملګری AI سلاکار", micStart:"🎤 په غږ وپوښتئ (Record)", micStop:"⏹️ ودروئ او واستوئ", ask:"✨ مشوره واخلئ",
+    step5:"🗣️ له کرنیز سلاکار څخه وپوښتئ", micStart:"🎤 په غږ وپوښتئ", micStop:"⏹️ ودروئ او واستوئ", ask:"مشوره واخلئ",
     chips:["اوبه کمې دي، کوم فصل ښه دی؟","د سرې لګښت کمولو لپاره څه وکرئ؟","له سختې ګرمۍ څخه فصل څنګه وساتو؟","د دې ځمکې لپاره غوره فصل کوم دی؟"],
     waterLabel:"اوبه او باران", heatLabel:"تر ټولو زیاته تودوخه", soilLabel:"د پټي خاوره",
     waterLow:"اوبه کمې دي — لږ اوبه غوښتونکی فصل وکرئ", waterOk:"باران او لمدبل ښه دی",
     heatHigh:"سخته ګرمي — د ګرمۍ زغمونکی فصل وټاکئ", heatOk:"معتدله هوا — پر وخت کرنه وکړئ"
   },
   en: {
-    dir:"ltr", langName:"Simple English", hdrTitle:"🌾 SoilPulse — Farmer Helper", hdrSub:"Select your actual farm field on the map and hear advice in your language",
-    listenAll:"🔊 Listen Summary", step1:"Search Your Village or Draw Your Exact Field", gps:"📍 Standing on Farm? (GPS)", step2:"Select Crop System & Water Source",
+    dir:"ltr", langName:"Simple English", hdrTitle:"🌾 SoilPulse — Farmer Helper", hdrSub:"Pick your actual farm field and hear practical rotation advice",
+    listenAll:"🔊 Listen Summary", step1:"Search Your Village or Draw Your Exact Field", gps:"📍 Standing on Farm?", step2:"Select Crop System & Water Source",
     checkBtn:"🛰️ Check This Field's Weather & Soil", step3:"Selected Field Health Signals", step4:"Better Crop Rotations (Rabi + Kharif)",
-    step5:"🤖 Ask Farmer AI Advisor (Voice or Text)", micStart:"🎤 Record Voice", micStop:"⏹️ Stop & Send", ask:"✨ Ask AI",
+    step5:"🗣️ Ask Farm Extension Helper", micStart:"🎤 Speak Question", micStop:"⏹️ Stop & Send", ask:"Get Advice",
     chips:["Water is low, which crop is best?","How can I cut urea fertilizer costs?","How do I protect crops from extreme heat?","Which rotation fits this field best?"],
     waterLabel:"Water & Rain", heatLabel:"Peak Summer Heat", soilLabel:"Field Soil",
     waterLow:"Water deficit — pick water-saving crops", waterOk:"Better moisture balance",
@@ -263,7 +291,7 @@ const PK_REGIONS = {
 const PK_ROTATIONS = {
   cotton_wheat: [
     { best:false, titleUr:"پرانا طریقہ: صرف کپاس + گندم", titleEn:"Current: Cotton–Wheat Only", crops:["☁️ خریف: کپاس","🌾 ربیع: گندم","🟫 مئی-جون خالی"], benefitUr:"مئی جون میں زمین خالی رہتی ہے، طاقت کم ہو رہی ہے اور کھاد کا خرچہ بڑھتا ہے۔", benefitEn:"May–June bare soil loses moisture & nitrogen; fertilizer bill rises.", waterTag:"🔴 High Water", soilTag:"🔴 Bare May–Jun" },
-    { best:true,  titleUr:"بہترین مشورہ: گندم + 65 روزہ مونگ + کپاس", titleEn:"Best: Wheat–65d Mungbean–Cotton", crops:["🌾 ربیع: گندم","🫘 بہار/مئی-جون: مونگ","☁️ خریف: کپاس"], benefitUr:"مونگ مئی جون کے خالی وقت میں لگ کر مفت نائٹروجن دیتی ہے اور یوریا کھاد بچاتی ہے۔", benefitEn:"Mungbean fills May–June bare gap, fixes free nitrogen, and cuts urea cost.", waterTag:"🟢 Saves Water", soilTag:"🟢 +Free Nitrogen" },
+    { best:true,  titleUr:"بہترین مشورہ: گندم + 65 روزہ مونگ + کپاس", titleEn:"Best: Wheat–65d Mungbean–Cotton", crops:["🌾 ربیع: گندم","🫘 مئی-جون: مونگ","☁️ خریف: کپاس"], benefitUr:"مونگ مئی جون کے خالی وقت میں لگ کر مفت نائٹروجن دیتی ہے اور یوریا کھاد بچاتی ہے۔", benefitEn:"Mungbean fills May–June bare gap, fixes free nitrogen, and cuts urea cost.", waterTag:"🟢 Saves Water", soilTag:"🟢 +Free Nitrogen" },
     { best:false, titleUr:"چارہ پلان: کپاس + برسیم / جوار + گندم", titleEn:"Forage: Cotton–Berseem/Sorghum–Wheat", crops:["☁️ کپاس","🐄 برسیم / جوار","🌾 گندم"], benefitUr:"مویشیوں کے لیے سبز چارہ اور کلر/سخت زمین کو نرم کرنے کے لیے بہترین۔", benefitEn:"Great for livestock fodder and loosening hard or saline soil.", waterTag:"🟡 Medium Water", soilTag:"🟢 High Fodder" }
   ],
   rice_wheat: [
@@ -286,6 +314,21 @@ let pkState = {
 };
 let pkMap, drawnItems, snicLayerGroup, canvasRenderer;
 
+async function wakeBackend() {
+  const pill = document.getElementById("liveConnPill");
+  try {
+    const resp = await fetch(`${API_BASE}/`, { method: "GET" });
+    if (resp.ok) {
+      pill.className = "status-pill ok";
+      pill.textContent = "🟢 Live Connected";
+      return true;
+    }
+  } catch (e) {}
+  pill.className = "status-pill";
+  pill.textContent = "🟡 Satellite Ready";
+  return false;
+}
+
 function initPkMap() {
   const r = PK_REGIONS[pkState.regionKey];
   pkMap = L.map("pkMap").setView([r.lat, r.lon], 13);
@@ -304,15 +347,13 @@ function initPkMap() {
   pkMap.addControl(drawControl);
 
   pkMap.on(L.Draw.Event.CREATED, e => {
-    drawnItems.clearLayers();
-    drawnItems.addLayer(e.layer);
+    drawnItems.clearLayers(); drawnItems.addLayer(e.layer);
     updateDrawnField(e.layer.toGeoJSON());
   });
   pkMap.on(L.Draw.Event.EDITED, () => {
     const ls = drawnItems.getLayers();
     if (ls.length) updateDrawnField(ls[0].toGeoJSON());
   });
-
   drawDefaultField(r.lat, r.lon);
 }
 
@@ -328,12 +369,10 @@ function updateDrawnField(geojson, autoFetch = true) {
   const ring = geojson.geometry.coordinates[0];
   let latS = 0, lonS = 0; const pts = ring.slice(0, -1);
   pts.forEach(([lon, lat]) => { latS += lat; lonS += lon; });
-  pkState.lat = latS / pts.length;
-  pkState.lon = lonS / pts.length;
+  pkState.lat = latS / pts.length; pkState.lon = lonS / pts.length;
   const areaHa = Math.max(0.2, approxAreaHa(ring));
   pkState.areaAcres = areaHa * 2.471;
-  const kanal = pkState.areaAcres * 8;
-  document.getElementById("fieldInfoText").textContent = `${pkState.areaAcres.toFixed(1)} ایکڑ (${Math.round(kanal)} کنال) · (${pkState.lat.toFixed(4)}, ${pkState.lon.toFixed(4)})`;
+  document.getElementById("fieldInfoText").textContent = `${pkState.areaAcres.toFixed(1)} ایکڑ (${Math.round(pkState.areaAcres * 8)} کنال) · (${pkState.lat.toFixed(4)}, ${pkState.lon.toFixed(4)})`;
   if (autoFetch) checkMyFarmWithNasa();
 }
 
@@ -344,21 +383,20 @@ async function searchVillage() {
   try {
     const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q + ", Pakistan")}`);
     const arr = await resp.json();
-    if (!arr.length) throw new Error("Place not found");
+    if (!arr.length) throw new Error("Not found");
     const lat = parseFloat(arr[0].lat), lon = parseFloat(arr[0].lon);
     pkMap.setView([lat, lon], 14);
     drawDefaultField(lat, lon);
-    document.getElementById("locStatus").textContent = `Found: ${arr[0].display_name.split(",").slice(0,2).join(", ")}. Now draw your field polygon on the map!`;
+    checkMyFarmWithNasa();
   } catch (e) {
-    document.getElementById("locStatus").textContent = `Could not find "${q}". Try a nearby Tehsil/District name or tap directly on the map.`;
+    document.getElementById("locStatus").textContent = `Could not find "${q}". Tap directly on the map.`;
   }
 }
 
 async function loadSnicFieldsInFarmer() {
-  const backendUrl = document.getElementById("pkBackendUrl").value.replace(/\/$/, "");
-  document.getElementById("locStatus").textContent = "Loading 4,678 Sentinel-2 fields (Okara/Depalpur)...";
+  document.getElementById("locStatus").textContent = "Loading 4,678 Sentinel-2 fields...";
   try {
-    const resp = await fetch(`${backendUrl}/api/punjab/bare-fields`);
+    const resp = await fetch(`${API_BASE}/api/punjab/bare-fields`);
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
     snicLayerGroup.clearLayers();
@@ -376,14 +414,14 @@ async function loadSnicFieldsInFarmer() {
         drawnItems.clearLayers();
         L.circle([f.lat, f.lon], { radius: 70, color: "#fde047", weight: 3 }).addTo(drawnItems);
         document.getElementById("fieldInfoText").textContent =
-          `کھیت #${f.id} · ${f.area_acres} ایکڑ · ${f.status === "Bare" ? "🔴 خالی زمین (Bare)" : "🟢 کاشت شدہ"} · خالی مہینے: ${f.bare_months}`;
+          `کھیت #${f.id} · ${f.area_acres} ایکڑ · ${f.status === "Bare" ? "🔴 خالی زمین" : "🟢 کاشت شدہ"} · خالی مہینے: ${f.bare_months}`;
         checkMyFarmWithNasa();
       });
       snicLayerGroup.addLayer(m);
     });
-    document.getElementById("locStatus").textContent = `✅ 4,678 کھیت نقشے پر آ گئے (نارنجی = ${data.bare_count} خالی کھیت)۔ اپنے کھیت پر ٹیپ کریں!`;
+    document.getElementById("locStatus").textContent = `✅ 4,678 کھیت لوڈ ہو گئے (نارنجی = ${data.bare_count} خالی کھیت)۔ اپنے کھیت پر ٹیپ کریں!`;
   } catch (err) {
-    document.getElementById("locStatus").textContent = `Backend offline or CSV missing (${err.message}).`;
+    document.getElementById("locStatus").textContent = `Server waking up — try tapping again in 20 seconds (${err.message}).`;
   }
 }
 
@@ -418,7 +456,7 @@ function selectPkRegion(key, el) {
   const r = PK_REGIONS[key];
   pkMap.setView([r.lat, r.lon], 13);
   drawDefaultField(r.lat, r.lon);
-  renderSignals(); renderPkRotations();
+  checkMyFarmWithNasa();
 }
 
 function selectCurrentCrop(key, el) {
@@ -445,14 +483,13 @@ function useMyGps() {
 }
 
 async function fetchWithTimeout(url, ms = 4500) {
-  const ctrl = new AbortController();
-  const id = setTimeout(() => ctrl.abort(), ms);
+  const ctrl = new AbortController(), id = setTimeout(() => ctrl.abort(), ms);
   try { return await fetch(url, { signal: ctrl.signal }); } finally { clearTimeout(id); }
 }
 
 async function checkMyFarmWithNasa() {
   const statusEl = document.getElementById("locStatus");
-  statusEl.textContent = "🛰️ اس کھیت کا NASA سیٹلائٹ اور مٹی کا ڈیٹا چیک ہو رہا ہے...";
+  statusEl.textContent = "🛰️ NASA سیٹلائٹ اور مٹی کا ڈیٹا چیک ہو رہا ہے...";
   const { lat, lon } = pkState;
   const pUrl = `https://power.larc.nasa.gov/api/temporal/climatology/point?parameters=T2M,T2M_MIN,T2M_MAX,PRECTOTCORR,GWETROOT,ALLSKY_SFC_SW_DWN&community=AG&longitude=${lon.toFixed(3)}&latitude=${lat.toFixed(3)}&format=JSON`;
   const sUrl = `https://rest.isric.org/soilgrids/v2.0/properties/query?lon=${lon.toFixed(4)}&lat=${lat.toFixed(4)}&property=clay&property=sand&property=phh2o&depth=0-5cm&value=mean`;
@@ -484,25 +521,21 @@ async function checkMyFarmWithNasa() {
       pkState.liveSoil = { soilText: clay >= 27 ? "Clay Loam (چکنی میرا)" : sand >= 52 ? "Sandy Loam (ریتلی میرا)" : "Silt Loam (میرا زمین)", pH: ph ? ph.toFixed(1) : "—" };
     }
   }
-  statusEl.textContent = `✅ کھیت (${lat.toFixed(3)}, ${lon.toFixed(3)}) کا تازہ ڈیٹا لوڈ ہو گیا!`;
+  statusEl.textContent = `✅ کھیت (${lat.toFixed(3)}, ${lon.toFixed(3)}) کا تازہ سیٹلائٹ ڈیٹا لوڈ ہو گیا!`;
   renderSignals(); renderPkRotations();
 }
 
 function getFarmMetrics() {
   const b = PK_REGIONS[pkState.regionKey];
   return {
-    rainMm: pkState.liveWeather?.rainMm ?? b.rainMm,
-    etMm: pkState.liveWeather?.etMm ?? b.etMm,
-    peakHeat: pkState.liveWeather?.peakHeat ?? b.peakHeat,
-    wetness: pkState.liveWeather?.wetness ?? b.wetness,
-    soilText: pkState.liveSoil?.soilText ?? b.soilText,
-    pH: pkState.liveSoil?.pH ?? b.pH
+    rainMm: pkState.liveWeather?.rainMm ?? b.rainMm, etMm: pkState.liveWeather?.etMm ?? b.etMm,
+    peakHeat: pkState.liveWeather?.peakHeat ?? b.peakHeat, wetness: pkState.liveWeather?.wetness ?? b.wetness,
+    soilText: pkState.liveSoil?.soilText ?? b.soilText, pH: pkState.liveSoil?.pH ?? b.pH
   };
 }
 
 function renderSignals() {
-  const m = getFarmMetrics(), t = I18N[pkState.lang];
-  const deficit = m.rainMm - m.etMm;
+  const m = getFarmMetrics(), t = I18N[pkState.lang], deficit = m.rainMm - m.etMm;
   const wCls = pkState.waterKey === "rainfed" && m.rainMm < 350 ? "sig-bad" : deficit < -800 ? "sig-warn" : "sig-good";
   const hCls = m.peakHeat >= 41 ? "sig-bad" : m.peakHeat >= 35 ? "sig-warn" : "sig-good";
   document.getElementById("signalGrid").innerHTML = `
@@ -529,36 +562,21 @@ function renderPkRotations() {
   }).join("");
 }
 
-// ============================================================================
-// REAL SPOKEN VOICE OUTPUT (Backend gTTS MP3 + Browser Fallback)
-// ============================================================================
 async function speakText(text) {
-  const backendUrl = document.getElementById("pkBackendUrl").value.replace(/\/$/, "");
   const audioEl = document.getElementById("ttsAudio");
   try {
-    const resp = await fetch(`${backendUrl}/api/tts`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+    const resp = await fetch(`${API_BASE}/api/tts`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text, lang: pkState.lang })
     });
     if (!resp.ok) throw new Error(`TTS HTTP ${resp.status}`);
-    const blob = await resp.blob();
-    audioEl.src = URL.createObjectURL(blob);
+    audioEl.src = URL.createObjectURL(await resp.blob());
     await audioEl.play();
   } catch (err) {
-    // Only use browser speechSynthesis if an appropriate voice exists (Mac en-US skips Urdu script!)
     if ("speechSynthesis" in window) {
-      const voices = window.speechSynthesis.getVoices();
-      const targetPrefix = pkState.lang === "en" ? "en" : "ur";
+      const voices = window.speechSynthesis.getVoices(), targetPrefix = pkState.lang === "en" ? "en" : "ur";
       const voice = voices.find(v => v.lang.startsWith(targetPrefix)) || voices.find(v => v.lang.startsWith("hi"));
-      if (voice) {
-        window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text);
-        u.voice = voice; u.lang = voice.lang;
-        window.speechSynthesis.speak(u);
-      } else {
-        console.warn("TTS backend failed & no Urdu voice on macOS:", err);
-      }
+      if (voice) { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.voice = voice; u.lang = voice.lang; window.speechSynthesis.speak(u); }
     }
   }
 }
@@ -579,9 +597,6 @@ function speakSummary() {
 }
 function speakAiReply() { if (pkState.lastAiReply) speakText(pkState.lastAiReply); }
 
-// ============================================================================
-// REAL VOICE INPUT (MediaRecorder -> Gemini Multimodal Audio)
-// ============================================================================
 async function toggleAudioRecording() {
   const btn = document.getElementById("micBtn"), t = I18N[pkState.lang], replyBox = document.getElementById("aiReplyBox");
   if (!pkState.isRecording) {
@@ -593,35 +608,28 @@ async function toggleAudioRecording() {
       pkState.mediaRecorder.onstop = async () => {
         stream.getTracks().forEach(tr => tr.stop());
         const mime = pkState.mediaRecorder.mimeType || "audio/webm";
-        const blob = new Blob(pkState.audioChunks, { type: mime });
-        await sendVoiceAudioToGemini(blob, mime);
+        await sendVoiceAudioToGemini(new Blob(pkState.audioChunks, { type: mime }), mime);
       };
-      pkState.mediaRecorder.start();
-      pkState.isRecording = true;
-      btn.className = "big-btn btn-red";
-      btn.textContent = t.micStop;
-      replyBox.textContent = "🎤 ریکارڈنگ جاری ہے... سوال بول کر دوبارہ بٹن دبائیں۔ (Recording... tap Stop when done)";
+      pkState.mediaRecorder.start(); pkState.isRecording = true;
+      btn.className = "big-btn btn-red"; btn.textContent = t.micStop;
+      replyBox.textContent = "🎤 ریکارڈنگ جاری ہے... سوال بول کر دوبارہ بٹن دبائیں۔";
     } catch (err) {
-      replyBox.textContent = `❌ Microphone blocked or unavailable (${err.message}). Allow microphone permission in Chrome/Safari or use the quick buttons below.`;
+      replyBox.textContent = `❌ Microphone blocked (${err.message}).`;
     }
   } else {
-    pkState.isRecording = false;
-    btn.className = "big-btn btn-amber";
-    btn.textContent = t.micStart;
+    pkState.isRecording = false; btn.className = "big-btn btn-amber"; btn.textContent = t.micStart;
     pkState.mediaRecorder.stop();
   }
 }
 
 async function sendVoiceAudioToGemini(blob, mime) {
   const replyBox = document.getElementById("aiReplyBox");
-  replyBox.textContent = "🤖 آپ کی آواز Gemini AI کو بھیجی جا رہی ہے...";
+  replyBox.textContent = "⏳ مشورہ تیار ہو رہا ہے...";
   const reader = new FileReader();
   reader.onloadend = async () => {
-    const b64 = reader.result.split(",")[1];
-    const m = getFarmMetrics(), best = PK_ROTATIONS[pkState.cropKey].find(r => r.best), t = I18N[pkState.lang];
-    const backendUrl = document.getElementById("pkBackendUrl").value.replace(/\/$/, "");
+    const b64 = reader.result.split(",")[1], m = getFarmMetrics(), best = PK_ROTATIONS[pkState.cropKey].find(r => r.best), t = I18N[pkState.lang];
     try {
-      const resp = await fetch(`${backendUrl}/api/ai/kissan-voice`, {
+      const resp = await fetch(`${API_BASE}/api/ai/kissan-voice`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           lat: pkState.lat, lon: pkState.lon, area_acres: pkState.areaAcres,
@@ -632,11 +640,9 @@ async function sendVoiceAudioToGemini(blob, mime) {
       });
       const data = await resp.json();
       if (!resp.ok) throw new Error(data.detail || `HTTP ${resp.status}`);
-      pkState.lastAiReply = data.reply;
-      replyBox.textContent = data.reply;
-      speakText(data.reply);
+      pkState.lastAiReply = data.reply; replyBox.textContent = data.reply; speakText(data.reply);
     } catch (err) {
-      replyBox.textContent = `❌ Gemini Voice Error: ${err.message}`;
+      replyBox.textContent = `❌ Error: ${err.message}`;
     }
   };
   reader.readAsDataURL(blob);
@@ -648,11 +654,10 @@ async function askGeminiAdvisor() {
   const q = document.getElementById("farmerQuestion").value.trim();
   if (!q) return;
   const replyBox = document.getElementById("aiReplyBox");
-  replyBox.textContent = "🤖 Gemini AI مشورہ تیار کر رہا ہے...";
+  replyBox.textContent = "⏳ مشورہ تیار ہو رہا ہے...";
   const m = getFarmMetrics(), best = PK_ROTATIONS[pkState.cropKey].find(r => r.best), t = I18N[pkState.lang];
-  const backendUrl = document.getElementById("pkBackendUrl").value.replace(/\/$/, "");
   try {
-    const resp = await fetch(`${backendUrl}/api/ai/kissan-advisor`, {
+    const resp = await fetch(`${API_BASE}/api/ai/kissan-advisor`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         lat: pkState.lat, lon: pkState.lon, area_acres: pkState.areaAcres,
@@ -663,11 +668,9 @@ async function askGeminiAdvisor() {
     });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.detail || `HTTP ${resp.status}`);
-    pkState.lastAiReply = data.reply;
-    replyBox.textContent = data.reply;
-    speakText(data.reply);
+    pkState.lastAiReply = data.reply; replyBox.textContent = data.reply; speakText(data.reply);
   } catch (err) {
-    replyBox.textContent = `❌ Gemini Error: ${err.message}\n(Check GEMINI_API_KEY in backend/.env and ensure uvicorn is running on port 8000.)`;
+    replyBox.textContent = `❌ Error: ${err.message}`;
   }
 }
 
@@ -682,6 +685,8 @@ function approxAreaHa(ring) {
 window.addEventListener("DOMContentLoaded", () => {
   initPkMap();
   setLanguage("ur", document.querySelector(".lang-btn.active"));
+  wakeBackend();
+  checkMyFarmWithNasa();
 });
 </script>
 </body>
