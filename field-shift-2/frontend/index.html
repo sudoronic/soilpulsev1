@@ -313,8 +313,7 @@
       <button class="btn btn-snic" onclick="loadPunjabSnicFields()">🌾 Load 4,678 Sentinel-2 SNIC Fields (Punjab)</button>
       <button class="btn btn-nasa" onclick="submitBackendPolygonJob()">🚀 Run AppEEARS / NRCS / CropScape Backend</button>
 
-      <label for="backendUrlInput" style="margin-top:0.25rem;">FastAPI Backend URL</label>
-      <input type="text" id="backendUrlInput" value="http://127.0.0.1:8000" />
+      <input type="hidden" id="backendUrlInput" value="" />
 
       <div id="apiStatus" class="status-msg">Draw a field polygon on the Map, or click above to load live NASA POWER, SoilGrids, SRTM, or the 4,678-field Sentinel-2 SNIC scan.</div>
 
@@ -1301,7 +1300,18 @@ function heatColor(val, min, max, stops) {
 }
 function hexToRgb(hex) { const n = parseInt(hex.replace("#",""), 16); return { r:(n>>16)&255, g:(n>>8)&255, b:n&255 }; }
 
-window.addEventListener("DOMContentLoaded", () => { initMap(); updateAll(); });
+window.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("backendUrlInput").value =
+    (location.hostname === "127.0.0.1" || location.hostname === "localhost")
+      ? "http://127.0.0.1:8000"
+      : "https://backend-3ocg.onrender.com";
+  initMap();
+  updateAll();
+  fetchAllLiveApis();
+  fetch(`${document.getElementById("backendUrlInput").value}/`)
+    .then(r => { if (r.ok) { const b = document.getElementById("backendBadge"); b.className = "badge live"; b.textContent = "⚡ Backend: Live"; } })
+    .catch(() => {});
+});
 </script>
 </body>
 </html>
